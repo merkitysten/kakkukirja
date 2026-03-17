@@ -1,0 +1,1733 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kakkukirja-ohjain | Merkitysten® Matematiikka</title>
+  <style>
+    :root {
+      --c1: #1a1a1a; --c2: #E8185E; --c3: #F5C400; --c4: #2176E8;
+      --c5: #FF6B00; --c6: #8E24AA; --c7: #388E3C; --c8: #6D3B17;
+      --c9: #E91E8C; --c10: #00ACC1;
+      --bg: #F8F7F4; --white: #FFFFFF; --border: #E5E3DE;
+      --text-main: #1a1a1a; --text-sub: #6B6860;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--c1);
+      color: white;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      gap: 12px;
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .logo { font-size: 24px; }
+    .header-title h1 { font-size: 1rem; font-weight: 700; letter-spacing: 0.02em; }
+    .header-title p  { font-size: 0.72rem; opacity: 0.55; font-style: italic; }
+
+    .header-buttons { display: flex; gap: 8px; }
+    .hdr-btn {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-family: inherit;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .hdr-btn:hover { background: rgba(255,255,255,0.2); }
+    .hdr-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    #stop-btn { transition: background 0.15s, border-color 0.15s; }
+    #stop-btn.active {
+      background: rgba(232,24,94,0.35);
+      border-color: rgba(232,24,94,0.8);
+      animation: stopPulse 1.8s ease-in-out infinite;
+    }
+    @keyframes stopPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(232,24,94,0.4); }
+      50%       { box-shadow: 0 0 0 6px rgba(232,24,94,0); }
+    }
+
+    /* ── Settings panel ── */
+    .settings-panel {
+      background: white;
+      border-bottom: 1px solid var(--border);
+      padding: 16px 20px;
+      display: none;
+      flex-shrink: 0;
+    }
+    .settings-panel.open { display: block; }
+    .settings-panel label { font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 4px; }
+    .settings-panel p { font-size: 0.75rem; color: var(--text-sub); margin-bottom: 8px; }
+    .api-row { display: flex; gap: 8px; }
+    .api-input {
+      flex: 1; padding: 8px 12px;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      font-size: 0.9rem; font-family: monospace; outline: none;
+    }
+    .api-input:focus { border-color: var(--c1); }
+    .save-btn {
+      background: var(--c1); color: white; border: none;
+      padding: 8px 16px; border-radius: 8px; cursor: pointer;
+      font-size: 0.85rem; font-family: inherit;
+    }
+
+    /* ── Chat area ── */
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 16px 8px;
+      scroll-behavior: smooth;
+    }
+
+    .msg-wrap {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      animation: fadeUp 0.25s ease;
+      max-width: 720px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .msg-wrap.user { flex-direction: row-reverse; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      flex-shrink: 0; display: flex; align-items: center;
+      justify-content: center; font-size: 16px;
+      background: var(--c1);
+    }
+    .msg-wrap.user .avatar { background: #D8D5CF; }
+
+    .bubble {
+      max-width: min(78%, 480px);
+      padding: 11px 15px;
+      border-radius: 16px;
+      line-height: 1.58;
+      font-size: 0.93rem;
+    }
+    .msg-wrap.bot  .bubble { background: white; border: 1px solid var(--border); border-top-left-radius: 4px; }
+    .msg-wrap.user .bubble { background: var(--c1); color: white; border-top-right-radius: 4px; }
+    .bubble strong { font-weight: 700; }
+
+    /* ── Page card (circle visualization) ── */
+    .pages-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+    .page-card {
+      display: inline-flex; flex-direction: column; align-items: center;
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 12px; padding: 12px 14px; gap: 6px;
+    }
+    .pg-label {
+      font-size: 0.7rem; color: var(--text-sub);
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .dots-row { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
+    .dot-item { display: flex; align-items: center; gap: 3px; font-size: 0.72rem; }
+    .color-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── Examples bar ── */
+    #examples {
+      padding: 10px 16px;
+      border-top: 1px solid var(--border);
+      background: white;
+      flex-shrink: 0;
+    }
+    #examples p { font-size: 0.73rem; color: var(--text-sub); margin-bottom: 7px; }
+    .ex-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .ex-chip {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 20px; padding: 5px 12px;
+      font-size: 0.82rem; cursor: pointer; font-family: inherit;
+      transition: all 0.15s;
+    }
+    .ex-chip:hover { background: var(--c1); color: white; border-color: var(--c1); }
+
+    /* ── Input area ── */
+    #input-area {
+      border-top: 1px solid var(--border);
+      padding: 12px 16px;
+      background: white;
+      flex-shrink: 0;
+    }
+    .input-row {
+      display: flex; gap: 8px;
+      max-width: 720px; margin: 0 auto;
+    }
+    #msg-input {
+      flex: 1; padding: 11px 16px;
+      border: 1.5px solid var(--border); border-radius: 24px;
+      font-size: 0.93rem; font-family: inherit;
+      outline: none; resize: none; max-height: 100px;
+      line-height: 1.4; transition: border-color 0.2s;
+    }
+    #msg-input:focus { border-color: var(--c1); }
+    #send-btn {
+      background: var(--c1); color: white; border: none;
+      width: 44px; height: 44px; border-radius: 50%;
+      cursor: pointer; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0; transition: transform 0.1s;
+    }
+    #send-btn:hover  { transform: scale(1.05); }
+    #send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* ── Mic button ── */
+    #mic-btn {
+      background: var(--bg); color: var(--text-main);
+      border: 1.5px solid var(--border);
+      width: 44px; height: 44px; border-radius: 50%;
+      cursor: pointer; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0;
+      font-size: 18px; transition: all 0.2s;
+    }
+    #mic-btn:hover { border-color: var(--c1); background: white; }
+    #mic-btn.listening {
+      background: var(--c2); color: white;
+      border-color: var(--c2);
+      animation: micPulse 1s ease-in-out infinite;
+    }
+    #mic-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    @keyframes micPulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(232,24,94,0.4); }
+      50%       { transform: scale(1.08); box-shadow: 0 0 0 8px rgba(232,24,94,0); }
+    }
+
+    /* ── Puhetila-UI ── */
+    #voice-screen {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      padding: 24px 16px;
+      overflow-y: auto;
+    }
+    body.voice-mode #voice-screen  { display: flex; }
+    body.voice-mode #chat          { display: none; }
+    body.voice-mode #examples      { display: none; }
+    body.voice-mode #msg-input     { display: none; }
+    body.voice-mode #send-btn      { display: none; }
+    body.voice-mode .input-row     { justify-content: center; }
+
+    #voice-state {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 12px; text-align: center;
+    }
+    #voice-icon { font-size: 72px; line-height: 1; }
+    #voice-label {
+      font-size: 1.1rem; color: var(--text-sub);
+      font-weight: 500; letter-spacing: 0.02em;
+    }
+    #voice-circles { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
+
+    /* ── Typing indicator ── */
+    .typing { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+    .t-dot {
+      width: 7px; height: 7px; background: #bbb;
+      border-radius: 50%; animation: pulse 1.2s infinite;
+    }
+    .t-dot:nth-child(2) { animation-delay: 0.2s; }
+    .t-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes pulse {
+      0%,60%,100% { transform: scale(1); opacity: 0.4; }
+      30%          { transform: scale(1.4); opacity: 1; }
+    }
+
+    #quality-results {
+      margin-top: 10px;
+      font-size: 0.82rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      background: #F0F7F0;
+      border: 1px solid #C8E6C9;
+      border-radius: 8px;
+      padding: 10px 13px;
+      display: none;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+    #quality-results.error { background: #FFF3F0; border-color: #FFCDD2; }
+
+    #session-results {
+      margin-top: 10px;
+      font-size: 0.82rem;
+      line-height: 1.65;
+      white-space: pre-wrap;
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      border-radius: 8px;
+      padding: 10px 13px;
+      display: none;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+    #session-results.error { background: #FFF3F0; border-color: #FFCDD2; }
+
+    @media (max-width: 500px) {
+      .bubble { max-width: 88%; }
+      .page-card { padding: 8px 10px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header>
+  <div class="header-left">
+    <span class="logo">🎂</span>
+    <div class="header-title">
+      <h1>Kakkukirja-ohjain</h1>
+      <p>Merkitysten® Toiminnallinen Matematiikka</p>
+    </div>
+  </div>
+  <div class="header-buttons">
+    <button class="hdr-btn" id="voice-btn" onclick="toggleVoice()" title="Puhetila">🔊 Puhe</button>
+    <button class="hdr-btn" id="hp-btn" onclick="toggleHeadphones()" title="Vaihda kaiutin/kuulokkeet">🔈 Kaiutin</button>
+    <button class="hdr-btn" id="stop-btn" onclick="stopBot()" disabled title="Pysäytä botti">■ Stop</button>
+    <button class="hdr-btn" onclick="newConversation()">↺ Uusi</button>
+    <button class="hdr-btn" onclick="toggleSettings()">⚙ API-avain</button>
+  </div>
+</header>
+
+<!-- ═══ SETTINGS PANEL ═══ -->
+<div class="settings-panel" id="settings">
+  <label>Anthropic API-avain</label>
+  <p>Hanki osoitteesta <strong>console.anthropic.com</strong> — tallennetaan vain tässä selaimessa.</p>
+  <div class="api-row">
+    <input type="password" class="api-input" id="api-key-input" placeholder="sk-ant-..." />
+    <button class="save-btn" onclick="saveApiKey()">Tallenna</button>
+  </div>
+  <div style="margin-top:12px">
+    <label>OpenAI API-avain <span style="font-weight:400;color:var(--text-sub)">(puheääntä varten)</span></label>
+    <p>Hanki osoitteesta <strong>platform.openai.com</strong> — tarvitaan luonnollista puheääntä varten.</p>
+    <div class="api-row">
+      <input type="password" class="api-input" id="openai-key-input" placeholder="sk-..." />
+      <button class="save-btn" onclick="saveOpenAiKey()">Tallenna</button>
+    </div>
+  </div>
+
+  <!-- ── Puheloki ja kielentarkastus ── -->
+  <div style="margin-top:16px; border-top:1px solid var(--border); padding-top:14px;">
+    <label>Puheloki <span id="log-count" style="font-weight:400;color:var(--text-sub)">(0 lausetta)</span></label>
+    <p>Botti lokittaa kaikki lauseensa automaattisesti. Kielentarkastus lähettää lokin Claudelle ja lisää löydetyt virheet suoraan korjauslistaan.</p>
+    <div class="api-row" style="flex-wrap:wrap;gap:6px;">
+      <button class="save-btn" onclick="checkFinnishQuality()" title="Lähetä loki Claudelle, hae ✗/✓ -korjaukset">🔍 Tarkista kieli</button>
+      <button class="save-btn" style="background:#388E3C" onclick="downloadLog()" title="Lataa loki .txt-tiedostona">⬇ Lataa loki</button>
+      <button class="save-btn" style="background:#6B6860" onclick="clearLog()" title="Tyhjennä loki ja löydetyt korjaukset">🗑 Tyhjennä</button>
+    </div>
+    <div id="quality-results"></div>
+  </div>
+
+  <!-- ── Sessioanalyysi ── -->
+  <div style="margin-top:16px; border-top:1px solid var(--border); padding-top:14px;">
+    <label>Sessioanalyysi <span id="session-msg-count" style="font-weight:400;color:var(--text-sub)">(0 vuoroa)</span></label>
+    <p>Lähettää koko keskusteluhistorian Claudelle, joka tunnistaa hetket joissa oppija ilmaisi hämmennystä ja antaa parannusehdotuksia botin ilmaisuihin.</p>
+    <div class="api-row" style="flex-wrap:wrap;gap:6px;">
+      <button class="save-btn" style="background:#2176E8" onclick="analyzeSession()" title="Analysoi koko sessio pedagogisesti">📊 Analysoi sessio</button>
+    </div>
+    <div id="session-results"></div>
+  </div>
+</div>
+
+<!-- ═══ CHAT ═══ -->
+<div id="chat"></div>
+
+<!-- ═══ PUHETILA-NÄKYMÄ ═══ -->
+<div id="voice-screen">
+  <div id="voice-state">
+    <div id="voice-icon">🎂</div>
+    <div id="voice-label">Puhetila päällä</div>
+  </div>
+  <div id="voice-circles"></div>
+</div>
+
+<!-- ═══ EXAMPLES ═══ -->
+<div id="examples">
+  <p>Kokeile esimerkiksi:</p>
+  <div class="ex-chips">
+    <button class="ex-chip" onclick="useExample(this)">Mikä on 3/4?</button>
+    <button class="ex-chip" onclick="useExample(this)">Laske 3/4 luvusta 60</button>
+    <button class="ex-chip" onclick="useExample(this)">2/3 + 1/4</button>
+    <button class="ex-chip" onclick="useExample(this)">Lavenna 1/3 kuudensiksi</button>
+    <button class="ex-chip" onclick="useExample(this)">Supista 8/12</button>
+    <button class="ex-chip" onclick="useExample(this)">3/4 − 1/6</button>
+  </div>
+</div>
+
+<!-- ═══ INPUT ═══ -->
+<div id="input-area">
+  <div class="input-row">
+    <textarea id="msg-input" rows="1"
+              placeholder="Kirjoita tai puhu matikantehtäväsi..."
+              onkeydown="handleKey(event)"
+              oninput="autoResize(this)"></textarea>
+    <button id="mic-btn" onclick="toggleMic()" title="Puhu">🎤</button>
+    <button id="send-btn" onclick="sendMessage()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <line x1="22" y1="2" x2="11" y2="13"/>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// VÄRIT JA TIETOA
+// ═══════════════════════════════════════════════════════════
+
+const COLORS = {
+  0: '#888',
+  1: '#1a1a1a', 2: '#E8185E', 3: '#F5C400', 4: '#2176E8',
+  5: '#FF6B00', 6: '#8E24AA', 7: '#388E3C', 8: '#6D3B17',
+  9: '#E91E8C', 10: '#00ACC1'
+};
+
+const COLOR_NAMES = {
+  1:'musta', 2:'pinkki', 3:'keltainen', 4:'sininen',
+  5:'oranssi', 6:'violetti', 7:'vihreä', 8:'ruskea',
+  9:'magenta', 10:'turkoosi'
+};
+
+function getDivisors(n) {
+  if (n === 0) return [];
+  const res = [];
+  for (let i = 1; i <= 10; i++) if (n % i === 0) res.push(i);
+  return res;
+}
+
+function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+function lcm(a, b) { return (a * b) / gcd(a, b); }
+
+// ═══════════════════════════════════════════════════════════
+// SYSTEM PROMPT
+// ═══════════════════════════════════════════════════════════
+
+const SYSTEM_PROMPT = `Olet Kakkukirja-ohjain — Merkitysten® Toiminnallisen Matematiikan oppimisassistentti. Tehtäväsi on ohjata oppijaa käyttämään fyysistä Kakkukirjaa Sokraattisella dialogilla.
+
+KAKKUKIRJA (Jaollisuus 0–100):
+Kirjassa on sivut 0–100 ja 360. Jokainen sivu näyttää ympyrän (kakun) jaettuna sivunumeron verran yhtä suuriin viipaleisiin. Sivun numero on painettu ympyrän yläpuolelle omassa värissään.
+
+VÄRIJÄRJESTELMÄ — jokainen numero 1–10 omassa värissään:
+1=musta, 2=pinkki, 3=keltainen, 4=sininen, 5=oranssi, 6=violetti, 7=vihreä, 8=ruskea, 9=magenta, 10=turkoosi
+
+JAOLLISUUSPALLURAT:
+Sivun oikeassa reunassa on värillisiä palluroja. Ne kertovat, mille luvuille (1–10) ko. sivunumero on jaollinen. Esim. sivu 12 → pallurat: sininen(4) + keltainen(3) + pinkki(2) + musta(1). Sivu 7 → vain vihreä(7)+musta(1), koska 7 on alkuluku.
+
+KAKKUKALVOT:
+Läpinäkyviä värillisiä kalvoja, jotka ovat täsmälleen 1/N-kokoisia suhteessa kirjan ympyrään. Esim. kalvo 4 (sininen) = tasan 1/4 ympyrästä = 90°. Kalvon oikeassa reunassa on ko. numero, joka osuu tasan palluralle jos jako menee tasan — tai palluroiden väliin jos ei mene.
+
+KAKKULAUTANEN:
+Läpinäkyvä kalvo jossa on ympyrä + pystysuora kohdistusviiva. Sille piirretään lyijykynällä oma murtoluku ja asetetaan halutun luvun sivun päälle.
+
+═══ MURTOLUKUJEN KÄYTTÖLOGIIKKA ═══
+
+1. MURTOLUVUN KÄSITE (esim. "mikä on 3/4"):
+   • Sivu = NIMITTÄJÄ (d)
+   • Toiminto: oppija laittaa n sormea n viipaleelle
+   • Sivulla näkyy konkreettisesti: "3 osaa 4 yhtä suuresta"
+
+2. MURTO-OSAN LASKEMINEN (esim. "3/4 luvusta 60"):
+   KOLME VAIHETTA — kaikki tarvitaan:
+   a) Sivu d → ymmärrä murtoluku: laita n sormea
+   b) Sivu X → ymmärrä kokonaisluku: katso kaikki X osaa
+   c) Sivu X + kalvo d → kalvoa kierretään n kertaa; jokainen kierros = X/d
+
+3. LAVENTAMINEN (esim. "1/3 = ?/6"):
+   • Tarkista palluroista: onko uusi nimittäjä e jaollinen alkuperäisellä d:llä?
+   • Sivu = uusi nimittäjä (e)
+   • Kalvo = alkuperäinen nimittäjä (d) → peittää e/d viipaletta
+   • Tulos: n/d = (n × e/d) / e
+
+4. SUPISTAMINEN (esim. "supista 4/6"):
+   • Löydä yhteinen pallura (= suurin yhteinen tekijä, SYT)
+   • Sivu = d/SYT, osoittaja = n/SYT
+
+5. YHTEENLASKU (esim. "2/3 + 1/4"):
+   • Katso molempien nimittäjien palluroja → löydä pienin yhteinen nimittäjä (PYN)
+   • Sivu = PYN
+   • Molemmat kalvot sivulle → lavenna, sitten laske yhteen
+
+6. VÄHENNYSLASKU (esim. "3/4 − 1/6"):
+   • Sama logiikka kuin yhteenlaskussa, sivu = PYN
+
+═══ JOS OPPIJA EI TIEDÄ MIKÄ MURTOLUKU ON ═══
+
+Jos oppija ei tiedä mitä murtoluku tarkoittaa, ÄLÄ selitä käsitettä — ohjaa sen sijaan suoraan Kakkukirjaan.
+
+ASKEL 1 — Löydä sivu itse:
+• "Avaa Kakkukirja ja etsi sivu, jossa ympyrä on jaettu tasan kolmeen yhtä suureen osaan."
+• Kun löytänyt: "Tiedätkö miten tätä sivua kutsutaan?"
+• Kuuntele oppijan vastaus. Jos ei tiedä: "Se on sivu **3** — koska kolme osaa."
+
+ASKEL 2 — Kokeile lisää sivuja:
+• "Etsi sivu, jossa on kahdeksan yhtä suurta osaa."
+• Odota, kehui: "Löysit sivun 8!"
+• Kysy: "Huomasitko mitä yhteistä sivuilla 3 ja 8 on?" → oppija keksii: sivun numero kertoo osien määrän
+
+ASKEL 3 — Oma osoittaja:
+• "Onko sinulla oma henkilökohtainen osoittajasi mukana?" (Tällä tarkoitat oppijan omaa sormea — mutta ÄLÄ paljasta sitä heti. Anna oppijan miettiä.)
+• Jos ei keksi: "Se on aina sinulla mukana — katso kättäsi!"
+• Kun osoittaja (sormi) on löytynyt: "Osoita sillä yksi kolmasosa sivulla 3."
+• Harjoittele: "Osoita kaksi viideosaa sivulla 5."
+• "Osoita kolme kahdeksasosaa sivulla 8."
+
+ASKEL 4 — Nimi tulee luontevasti:
+• Kun oppija on osoittanut useita kertoja, kysy: "Mitä sinun sormesi tekee siellä sivulla?"
+• Jos oppija sanoo "osoittaa osaa" → "Niin! Siksi se on osoittaja."
+• Vasta tämän jälkeen voit mainita sanan 'murtoluku' — mutta vain jos se tulee luontevasti.
+
+═══ SOKRAATTINEN DIALOGI — VAIHEJÄRJESTYS ═══
+
+JOKAINEN DIALOGI ETENEE TÄSSÄ JÄRJESTYKSESSÄ:
+
+VAIHE 1 — AJATTELU (aloita AINA tästä):
+Kysy ensin mitä oppija jo ajattelee tai tietää. ÄLÄ vielä mainitse Kakkukirjaa tai sivuja.
+Esim: "Kumpi tuntuu sinusta suuremmalta?" / "Mitä tiedät tästä murtoluvusta?" / "Miten lähtisit ratkaisemaan tätä?"
+
+VAIHE 2 — KÄSITE:
+Kun oppija on vastannut, ohjaa ymmärtämään tehtävän matematiikka.
+Kysy esim: "Mitä nimittäjä kertoo?" / "Miksi eri nimittäjillä on vaikea vertailla?" / "Mitä tarvitsisit, jotta vertailu onnistuisi?"
+
+VAIHE 3 — TYÖKALU (Sokraattisesti, ei suoraan!):
+Esittele Kakkukirja, mutta ÄLÄ kerro heti oikeaa sivua. Ohjaa oppija löytämään se itse kysymyksillä.
+Esim: "Mitkä ovat nimittäjät?" → "Avaa sivu 7. Mitkä pallurat näet?" → "Avaa sivu 3. Mitkä pallurat?" → "Tarvitaan sivu jolla on MOLEMMAT pallurat. Mikä se voisi olla?"
+Kerro oikea sivu vasta jos oppija ei keksi.
+
+VAIHE 4 — HAVAINTO:
+Kysy mitä oppija näkee kirjassa. Yksi kysymys kerrallaan.
+Esim: "Montako viipaletta kalvo peittää?" / "Mitä se kertoo?"
+Anna oppijan itse sanoa johtopäätös ääneen.
+
+VAIHE 5 — YHTEENVETO:
+Tiivistä lyhyesti: mitä sivuja käytettiin, miksi, mitä opittiin.
+
+LISÄTTY OPERAATIOTYYPPI:
+
+7. VERTAILU (esim. "kumpi on suurempi 4/7 vai 2/3"):
+   Sokraattiset askeleet — yksi kerrallaan, ÄLÄ hyppää yli:
+
+   PALOJEN KOKO — ensin kokemus, sitten ymmärrys:
+   a) "Kumpi tuntuu suuremmalta, ja miksi?" → kuuntele arvaus
+   b) "Avaa Kakkukirjasta sivu 7. Montako yhtä suurta osaa siinä on?" → 7
+   c) "Avaa sivu 3. Montako osaa?" → 3
+   d) "Katso molempia sivuja. Onko yksi seitsemäsosa (1/7) yhtä suuri kuin yksi kolmasosa (1/3)?" → EI
+   e) ÄLÄ tee johtopäätöstä oppijan puolesta. Sen sijaan kysy: "Mitä tämä tarkoittaa, kun vertaat 4/7:ää ja 2/3:a?" → anna oppijan itse oivaltaa: palat ovat eri kokoisia, joten ei voi vertailla suoraan
+   f) Vasta kun oppija on sanonut sen itse, kysy: "Voimmeko siis vertailla suoraan?" → oppija: EI
+
+   YHTEINEN NIMITTÄJÄ — palluroiden kautta:
+   f) "Tarvitsemme samankokoisia paloja. Katso sivun 7 palluroja — mitä värejä näet?" → vihreä(7) [Jos oppija mainitsee myös mustan: "Kyllä, musta löytyy joka sivulta — se ei auta etsimisessä. Mikä väri on erityinen tälle sivulle?"]
+   g) "Katso sivun 3 palluroja — mitä värejä?" → keltainen(3) [sama ohje mustasta tarvittaessa]
+   h) "Tarvitsemme sivun, jolla on MOLEMMAT — vihreä JA keltainen pallura. Mikä sivu voisi olla?" → anna oppijan keksiä tai selata kirjaa vapaasti. ÄLÄ anna vihjeeksi kertolaskua vielä tässä.
+   i) Jos oppija löytää toimivan sivun (esim. 42 tai 21): kehui ensin lämpimästi! ("Hienosti löysit!") Sitten kysy: "Toimiiko se — löytyykö sieltä molemmat pallurat?" → kyllä
+   j) Kysy sen jälkeen: "Loistavaa! Voisiko olla myös jokin PIENEMPI sivu, jolla on samat pallurat?" → anna oppijan etsiä. Jos jumissa: "Kokeile kertoa 7 × 3 — mitä saat?" → 21
+   k) Kun oikea sivu (21) löytyy: "Avaa sivu 21. Mitä palluroja näet?" → vihreä(7)+keltainen(3) ✓
+
+   VERTAILU SIVULLA 21:
+   j) "Ota vihreä kalvo (7). Aseta sivulle 21. Montako viipaletta se peittää?" → 3
+   k) "Joten 4/7 vastaa montako 21:stä?" → 12
+   l) "Ota keltainen kalvo (3). Montako viipaletta sivulla 21?" → 7
+   m) "Joten 2/3 vastaa montako 21:stä?" → 14
+   n) "Kumpi on suurempi — 12 vai 14 viipaletta?" → oppija sanoo itse: 2/3 > 4/7
+
+EPÄVARMUUDEN JA HILJAISUUDEN TUNNISTAMINEN:
+Jos oppija sanoo "en tiedä", "en osaa", "en muista", "öö", "hmm", tai vastaa hyvin lyhyesti (1–2 sanaa):
+• ÄLÄ jatka eteenpäin uuteen asiaan
+• ÄLÄ toista samaa kysymystä uudelleen
+• Anna yksi pienempi ja helpompi askel: "Katsopaas sivu 3 — montako osaa siinä on?"
+• Jos sama jumitus jatkuu: anna suora vihje tai vastaus ja jatka siitä eteenpäin
+• Käytä rohkaisua: "Ei haittaa yhtään, mietitään yhdessä!" tai "Ei stressiä, kokeillaanpa eri tavalla."
+
+Oppijan tahti on ainoa tahti — koskaan ei kiirehditä.
+Jos oppija miettii pitkään, se on hyvä merkki: hän prosessoi. Odota.
+
+VASTEAIKATULKINTA — jos viesti alkaa [vasteaika: Xs]:
+• alle 3s = nopea: oppija vastasi heti → varma, voit edetä normaalisti
+• 3–8s = normaali: odotettava miettimisaika → jatka normaalisti
+• yli 8s = hidas: oppija mietti pitkään → ole erityisen kärsivällinen, anna pienempi askel tai suora vihje
+
+MUUT OHJEET:
+• Yksi kysymys tai ohje kerrallaan — lyhyesti
+• Jos väärä: ohjaa lempeästi: "Ei ihan, kokeile uudelleen! 💪"
+• Jos oppija on lukossa TAI pyytää suoraa vastausta: anna vihje tai kerro vastaus ja jatka
+• ÄLÄ koskaan mainitse oikeaa sivunumeroa ennen kuin oppijalla on ollut mahdollisuus keksiä se itse
+
+LAPSIYSTÄVÄLLINEN TYYLI — tämä on tärkein:
+• Puhu kuin innostunut aikuinen kaveri, ei opettaja
+• YKSI lause per viesti — ei enempää. Kysy yksi asia tai anna yksi kehu.
+• Kehut innostuneesti: "Vau!", "Tosi hienosti!", "Olet hyvä!", "Just noin!", "Mahtavaa!"
+• Käytä yksinkertaisia sanoja
+• Ole iloinen ja rohkaiseva
+
+KIELLETYT SANAT JA FRAASIT — älä koskaan käytä:
+• "mielellään" — ei sovi lapselle
+• "toki", "ehdottomasti", "varmasti" — liian virallisia
+• "erinomainen kysymys", "hyvä kysymys" — kuulostaa teennäiseltä
+• "ymmärrän", "tietenkin" — robottimaiset täytesanat
+• Aloitukset kuten "Selvä!", "Hienoa!", ennen kuin oppija on tehnyt jotain
+
+SUOMEN KIELI — kirjoita natiivina suomenkielisenä, ei käännettynä englannista:
+
+Vältä englannin pohjalta syntyneitä virheellisiä ilmaisuja:
+✗ "Ollaan hyvää mieltä"  →  ✓ "Ollaan samaa mieltä"
+✗ "Sinulla on oikein"    →  ✓ "Olet oikeassa"
+✗ "Tee se samoin"        →  ✓ "Tee se samalla tavalla"
+✗ "Olen ylpeä sinulle"   →  ✓ "Olen sinusta ylpeä"
+✗ "Kokeile uudelleen"    →  ✓ "Yritä uudelleen" / "Kokeile vielä kerran"
+✗ "Se on oikein!"        →  ✓ "Juuri niin!" / "Täsmälleen!"
+✗ "Hyvä työ!"            →  ✓ "Hienosti tehty!" / "Loistava!"
+✗ "Olen varma"           →  ✓ "Uskon että" / "Kyllä se on niin"
+✗ "Katsotaan"            →  ✓ "Katsopaas" / "Katsotaanpa"
+✗ "Se on tärkeää"        →  ✓ "Se on tärkeä juttu" / "Se kannattaa muistaa"
+
+Luontevia lasten kanssa käytettäviä suomenkielisiä ilmaisuja:
+• Kehut: "Vau!", "Mahtavaa!", "Olet hyvä!", "Just noin!", "Tosi hienosti!", "Loistavaa!"
+• Rohkaisu: "Ei haittaa, yritä vielä!", "Melkein!", "Lähes oikein — kokeile vielä kerran!"
+• Ohjaus: "Avaapaas...", "Katsopaas...", "Kokeilepaas...", "Mitäs luulet?"
+• Ihmettely: "Noniin!", "Niin juuri!", "Oho, kyllä se on niin!"
+
+MUOTO:
+• Suomen kieli, puhekieltä — kuin puhuisi ääneen
+• **Lihavointi** tärkeille luvuille
+• Yksi emoji per viesti riittää
+• MAKSIMISSAAN yksi lause — tämä on ehdoton raja
+
+Jos tehtävä ei liity murtolukuihin: "Tämä työkalu on juuri nyt suunnattu murtolukuihin. Kokeile esim: '3/4 luvusta 60'!"
+
+ASIATTOMAT VIESTIT JA TROLLAUS:
+Merkki [viesti: asiaton] tarkoittaa, että oppijan viesti sisälsi kiroilua, häiriköintiä tai trollausta.
+• ÄLÄ koskaan toista, kommentoi tai vahvista asiattomia sanoja — jätä ne täysin huomiotta
+• ÄLÄ moiti, luennoi tai saarnaakaan asiasta
+• Ohjaa lyhyesti ja rauhallisesti takaisin: esim. "Jatketaan matikan parissa — missä sivulla olit? 📖" tai "Katsotaanpa sitä kakkua! Avaa sivu..."
+• Jos asiaton käytös jatkuu kolme kertaa peräkkäin, sano kerran neutraalisti: "Voin auttaa kun puhutaan murtoluvuista." Älä selittele enempää.
+• Pidä äänensävy tasaisen lämpimänä — ei kylmänä eikä turhautuneena`;
+
+// ═══════════════════════════════════════════════════════════
+// TILA
+// ═══════════════════════════════════════════════════════════
+
+let conversationHistory = [];
+let apiKey    = localStorage.getItem('kk_api_key')    || '';
+let openaiKey = localStorage.getItem('kk_openai_key') || '';
+let waiting   = false;
+
+// ── Puheloki ja kielentarkastus ──
+let speechLog   = JSON.parse(localStorage.getItem('kk_speech_log')   || '[]');
+let extraFixes  = JSON.parse(localStorage.getItem('kk_extra_fixes')  || '[]');
+
+function logSpeech(text) {
+  speechLog.push({ t: new Date().toISOString(), s: text });
+  if (speechLog.length > 200) speechLog = speechLog.slice(-200);
+  localStorage.setItem('kk_speech_log', JSON.stringify(speechLog));
+  updateLogCount();
+}
+
+function updateLogCount() {
+  const el = document.getElementById('log-count');
+  if (el) el.textContent = `(${speechLog.length} lausetta)`;
+}
+
+function updateSessionCount() {
+  const el = document.getElementById('session-msg-count');
+  if (el) {
+    const turns = conversationHistory.filter(m => m.role === 'user' || m.role === 'assistant').length;
+    el.textContent = `(${turns} vuoroa)`;
+  }
+}
+
+// ── Asiasisältösuodatin ──
+// Tarkistaa onko viesti asiaton (kiroilu/trollaus)
+// Jos on → lisätään [viesti: asiaton] -etuliite Claudelle, mutta ei näytetä UI:ssa
+let recentInappropriateCount = 0;  // peräkkäiset asiattomat viestit
+
+const INAPPROPRIATE_PATTERNS = [
+  // Suomalaiset kirosanajuuret (taivutusmuodot katettu \w+:lla)
+  /\b(vitu\w*|vittu\w*|perkele\w*|saatana\w*|helveti\w*|paska\w*|hitto\w*|jumalauta\w*|haista\w*|kusipää\w*|huora\w*|mulkku\w*|perse\w*)\b/i,
+  // Sama sana yli 3 kertaa peräkkäin (nonsense/häiriö)
+  /\b(\w{2,})\b(?:\s+\1\b){3,}/i,
+  // Pelkkä HUUTAMINEN: yli 12 isoa kirjainta peräkkäin ilman asiasisältöä
+  /^[A-ZÄÖÅ!?\s]{12,}$/,
+  // Englanninkieliset yleisimmät (jos lapsi vaihtaa kieliä trollatessa)
+  /\b(fuck|shit|ass\b|bitch|damn\b)\b/i,
+];
+
+function detectInappropriate(text) {
+  return INAPPROPRIATE_PATTERNS.some(p => p.test(text));
+}
+
+// Dynaamisesti laajennettu system prompt — sisältää löydetyt lisäkorjaukset
+function getDynamicSystemPrompt() {
+  if (extraFixes.length === 0) return SYSTEM_PROMPT;
+  return SYSTEM_PROMPT +
+    '\n\nAUTOMATTISESTI LÖYDETYT LISÄKORJAUKSET — noudata samaa ✗/✓ -logiikkaa:\n' +
+    extraFixes.join('\n');
+}
+
+async function checkFinnishQuality() {
+  if (!apiKey) { alert('Lisää ensin Anthropic API-avain asetuksista.'); return; }
+  if (speechLog.length === 0) { alert('Loki on tyhjä — käy ensin puhumassa botin kanssa!'); return; }
+
+  const resultsEl = document.getElementById('quality-results');
+  resultsEl.className = '';
+  resultsEl.style.display = 'block';
+  resultsEl.textContent = '⏳ Tarkistetaan kieltä…';
+
+  // Otetaan viimeiset 40 lausetta
+  const sample = speechLog.slice(-40).map((e, i) => `${i + 1}. "${e.s}"`).join('\n');
+
+  const checkPrompt =
+    `Olet suomen kielen asiantuntija. Tarkista seuraavat lauseet, jotka suomenkielinen tekoälybotti on tuottanut lapselle matematiikan oppitunnilla.\n\n` +
+    `Tunnista kaikki:\n` +
+    `- epäluontevat tai käännetyn kuuloiset ilmaisut\n` +
+    `- kieliopilliset virheet\n` +
+    `- väärät sijamuodot\n` +
+    `- sanavalinnat, jotka eivät sovi luontevaan puhekieleen\n\n` +
+    `Anna tulokset TÄSMÄLLEEN tässä muodossa (yksi per rivi):\n` +
+    `✗ "virheellinen ilmaisu" → ✓ "luonteva vaihtoehto"\n\n` +
+    `Jos lauseet ovat kaikki oikeaa luontevaa suomea, kirjoita ainoastaan: EI VIRHEITÄ\n\n` +
+    `Lauseet:\n${sample}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 600,
+        messages: [{ role: 'user', content: checkPrompt }]
+      })
+    });
+
+    const data  = await res.json();
+    const reply = data.content?.[0]?.text?.trim() || '';
+
+    if (reply === 'EI VIRHEITÄ' || reply.includes('EI VIRHEITÄ')) {
+      resultsEl.textContent = '✅ Ei virheitä löydetty — loistava suomen kieli!';
+      return;
+    }
+
+    // Parsitaan ✗-rivit ja lisätään automaattisesti korjauslistaan
+    const newFixes = reply.split('\n').filter(l => l.trim().startsWith('✗'));
+    if (newFixes.length > 0) {
+      const combined = [...new Set([...extraFixes, ...newFixes])];
+      extraFixes = combined;
+      localStorage.setItem('kk_extra_fixes', JSON.stringify(extraFixes));
+      resultsEl.textContent =
+        `✅ Löydettiin ${newFixes.length} korjattavaa — lisätty automaattisesti botin korjauslistaan!\n\n` +
+        newFixes.join('\n') +
+        `\n\n(Yhteensä ${extraFixes.length} automaattikorjausta aktiivisena)`;
+    } else {
+      resultsEl.textContent = reply;
+    }
+
+  } catch (e) {
+    resultsEl.className = 'error';
+    resultsEl.textContent = '❌ Virhe: ' + e.message;
+  }
+}
+
+async function analyzeSession() {
+  if (!apiKey) { alert('Lisää ensin Anthropic API-avain asetuksista.'); return; }
+
+  // Suodatetaan vain aito dialogi (pois järjestelmäviestit)
+  const history = conversationHistory.filter(m => m.role === 'user' || m.role === 'assistant');
+
+  if (history.length < 4) {
+    alert('Sessio on liian lyhyt analysoitavaksi. Käy ensin pidempään keskustelussa!');
+    return;
+  }
+
+  const resultsEl = document.getElementById('session-results');
+  resultsEl.className = '';
+  resultsEl.style.display = 'block';
+  resultsEl.textContent = '⏳ Analysoidaan sessio…';
+
+  // Muotoillaan dialogi numeroituna
+  let dialogue = '';
+  let turn = 1;
+  for (const msg of history) {
+    const role = msg.role === 'assistant' ? 'BOTTI' : 'OPPIJA';
+    // Poistetaan [vasteaika: Xs] -etuliite näyttöä varten mutta SÄILYTETÄÄN analyysia varten
+    dialogue += `[${turn}] ${role}: ${msg.content}\n\n`;
+    turn++;
+  }
+
+  const analyzePrompt =
+    `Olet pedagoginen analyytikko. Analysoi seuraava oppimissessio, jossa botti ohjaa oppijaa käyttämään Kakkukirjaa murtolukujen oppimiseen Sokraattisella dialogilla.\n\n` +
+    `TÄRKEÄ ESIKARSINTA:\n` +
+    `Viestit joissa on merkintä [viesti: asiaton] tai [viesti: asiaton — toistuvaa] ovat kiroilua tai tahallista trollausta.\n` +
+    `• ÄLÄ käsittele niitä pedagogisina signaaleina — jätä täysin huomiotta analyysissä\n` +
+    `• ÄLÄ ehdota niihin pohjautuvia parannuksia botin käyttäytymiseen\n` +
+    `• Jos KAIKKI "hämmennys" oli asiattomia viestejä, kirjoita: SESSIO SUJUI HYVIN — ei pedagogisia ongelmia.\n\n` +
+    `TEHTÄVÄSI (ainoastaan aidot hämmennyssignaalit):\n` +
+    `1. Tunnista kohdat, joissa oppija ilmaisi AITOA hämmennystä tai epävarmuutta:\n` +
+    `   - eksplisiittiset: "en ymmärrä", "mitä tarkoitat", "sano selvemmin", "miksi"\n` +
+    `   - implisiittiset: hyvin lyhyt/yksisanainen vastaus kysymykseen, "ok", "en tiedä", "hmm"\n` +
+    `   - pitkä vasteaika — merkitty [vasteaika: Xs] (yli 8s on merkki hämmennystä)\n` +
+    `   - oppija vastaa kysymykseen täysin väärin tai vastauksen aiheen ohi\n\n` +
+    `2. Jokaiselle löydetylle aidolle hetkelle: mitä BOTTI sanoi JUURI ENNEN hämmennystä?\n\n` +
+    `3. Anna konkreettinen parannusehdotus: miten botin olisi pitänyt ilmaista asia selkeämmin?\n\n` +
+    `MUOTO — käytä TÄSMÄLLEEN tätä rakennetta jokaiselle hetkelle:\n` +
+    `🔴 HÄMMENNYS [vuoro N]: "[oppijan kommentti]"\n` +
+    `   Botin edellinen viesti: "[botin lausuma tiivistettynä]"\n` +
+    `   ✏ Parannusehdotus: "[konkreettinen korjattu ilmaisu tai lähestymistapa]"\n\n` +
+    `Jos oppija ei kertaakaan ilmaissut AITOA hämmennystä, kirjoita AINOASTAAN: SESSIO SUJUI HYVIN — ei havaittavia ongelmia.\n\n` +
+    `SESSIO:\n${dialogue}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 900,
+        messages: [{ role: 'user', content: analyzePrompt }]
+      })
+    });
+
+    const data  = await res.json();
+    const reply = data.content?.[0]?.text?.trim() || '';
+
+    if (reply.includes('SESSIO SUJUI HYVIN')) {
+      resultsEl.textContent = '✅ ' + reply;
+      return;
+    }
+
+    // Kerätään ✏ Parannusehdotus -rivit → lisätään automaattisesti botin ohjaukseen
+    const suggestions = reply
+      .split('\n')
+      .filter(l => l.trim().startsWith('✏'))
+      .map(l => l.replace(/^\s*✏\s*Parannusehdotus:\s*/i, '').replace(/^"|"$/g, '').trim())
+      .filter(l => l.length > 8);
+
+    let output = reply;
+
+    if (suggestions.length > 0) {
+      // Tallennetaan pedagogiset huomiot extraFixes-muodossa
+      const fixLines = suggestions.map(s => `✏ Pedagoginen huomio: ${s}`);
+      const combined = [...new Set([...extraFixes, ...fixLines])];
+      extraFixes = combined;
+      localStorage.setItem('kk_extra_fixes', JSON.stringify(extraFixes));
+      output += `\n\n─────────────────────────────\n✅ ${suggestions.length} parannusehdotusta lisätty botin ohjaukseen automaattisesti.`;
+    }
+
+    resultsEl.textContent = output;
+
+  } catch (e) {
+    resultsEl.className = 'error';
+    resultsEl.textContent = '❌ Virhe: ' + e.message;
+  }
+}
+
+function downloadLog() {
+  if (speechLog.length === 0) { alert('Loki on tyhjä.'); return; }
+  const lines = speechLog.map(e =>
+    `[${e.t.replace('T', ' ').slice(0, 19)}] ${e.s}`
+  ).join('\n');
+  const blob = new Blob([lines], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `kakkukirja-loki-${new Date().toISOString().slice(0,10)}.txt`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function clearLog() {
+  if (!confirm(`Tyhjennetäänkö loki (${speechLog.length} lausetta) ja ${extraFixes.length} automaattikorjausta?`)) return;
+  speechLog  = [];
+  extraFixes = [];
+  localStorage.removeItem('kk_speech_log');
+  localStorage.removeItem('kk_extra_fixes');
+  updateLogCount();
+  const el = document.getElementById('quality-results');
+  if (el) { el.style.display = 'none'; el.textContent = ''; }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PUHETOIMINNOT (Web Speech API)
+// ═══════════════════════════════════════════════════════════
+
+let voiceEnabled       = false;
+let botSpeaking        = false;
+let headphonesMode     = false;   // kuulokkeet = ei echoa → luonnollisempi rytmi
+let currentAudio       = null;    // käynnissä oleva OpenAI TTS -audio
+let claudeAbortCtrl    = null;    // AbortController Claude-fetchille
+let questionAskedAt    = null;    // aikaleima: milloin botti lopetti puhumisen
+let pendingTranscript  = '';      // osittainen transkriptio (sisältöpohjainen jatko)
+
+// ── MediaRecorder + Whisper STT ──
+// Nauhoitetaan VAIN oppijan vuorolla → botti ei voi kuulla omaa ääntään
+
+let mediaStream   = null;
+let mediaRecorder = null;
+let audioChunks   = [];
+let isRecording   = false;
+let audioCtx      = null;
+let analyser      = null;
+let vadTimer      = null;
+
+const SPEECH_THRESHOLD    = 6;    // aikadomeeni-RMS (0–128), puhe alkaa
+const SILENCE_MS_SPEAKER  = 1500; // ms hiljaisuutta — kaiutinmoodi
+const SILENCE_MS_HP       = 700;  // ms hiljaisuutta — kuulokemoodi, nopea vastaus
+const SILENCE_MS_HP_Q     = 1400; // ms hiljaisuutta — kuulokemoodi, botti kysyi kysymyksen (oppija miettii)
+const MAX_REC_MS          = 12000; // turvaverkko: max nauhoitusaika (pidempi = enemmän aikaa miettiä)
+
+async function initMicrophone() {
+  if (mediaStream) return true;
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    });
+    // AudioContext voi käynnistyä suspended-tilassa — pakota resume
+    audioCtx = new AudioContext();
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.5;
+    audioCtx.createMediaStreamSource(mediaStream).connect(analyser);
+    return true;
+  } catch (e) {
+    alert('Mikrofoni estetty — salli lupa selaimen osoitepalkin lukkokuvakkeesta.');
+    return false;
+  }
+}
+
+// Aikadomeeni: hiljaisuus = kaikki arvot ~128, puhe = poikkeamia 128:sta
+function getSpeechLevel() {
+  if (!analyser) return 0;
+  const d = new Uint8Array(analyser.fftSize);
+  analyser.getByteTimeDomainData(d);
+  return Math.sqrt(d.reduce((s, v) => s + (v - 128) ** 2, 0) / d.length);
+}
+
+function startVoiceInput() {
+  if (!mediaStream || isRecording || waiting) return;
+  // Kaiutinmoodissa: ei nauhoiteta botin puhuessa (echo-esto)
+  // Kuulokemoodissa: voi nauhoittaa vaikka botti puhuu (käyttäjä voi keskeyttää)
+  if (!headphonesMode && botSpeaking) return;
+
+  audioChunks = [];
+  const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+    ? 'audio/webm;codecs=opus' : 'audio/webm';
+  mediaRecorder = new MediaRecorder(mediaStream, { mimeType: mime });
+  mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+  mediaRecorder.onstop = sendToWhisper;
+  mediaRecorder.start(150);
+  isRecording = true;
+  setMicUI('recording');
+
+  // VAD: jos botti juuri kysyi kysymyksen, annetaan enemmän miettimisaikaa
+  const lastMsg = conversationHistory.length > 0
+    ? conversationHistory[conversationHistory.length - 1] : null;
+  const botJustAsked = lastMsg?.role === 'assistant' && lastMsg?.content?.trimEnd().endsWith('?');
+  const silenceMs = headphonesMode
+    ? (botJustAsked ? SILENCE_MS_HP_Q : SILENCE_MS_HP)
+    : SILENCE_MS_SPEAKER;
+  let speechHeard = false, lastSpeech = Date.now();
+  vadTimer = setInterval(() => {
+    if (!isRecording) { clearInterval(vadTimer); return; }
+    const level = getSpeechLevel();
+    if (level > SPEECH_THRESHOLD) {
+      speechHeard = true;
+      lastSpeech = Date.now();
+      setMicUI('recording-active');
+    } else if (speechHeard && Date.now() - lastSpeech > silenceMs) {
+      stopVoiceInput(); // riittävästi hiljaisuutta → lähetä
+    }
+  }, 80);
+
+  // Turvaverkko: max aika
+  setTimeout(() => { if (isRecording) stopVoiceInput(); }, MAX_REC_MS);
+}
+
+function stopVoiceInput() {
+  if (!isRecording) return;
+  isRecording = false;
+  clearInterval(vadTimer); vadTimer = null;
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+  setMicUI('waiting');
+}
+
+async function sendToWhisper() {
+  const blob = new Blob(audioChunks, { type: 'audio/webm' });
+  if (!voiceEnabled || blob.size < 400) {
+    if (voiceEnabled) {
+      // Hiljaisuus ilman puhetta — jos oli osittainen transkriptio, lähetä se
+      if (pendingTranscript) { finishTranscription(pendingTranscript); }
+      else { startVoiceInput(); }
+    }
+    return;
+  }
+  if (!openaiKey) { pendingTranscript = ''; startVoiceInput(); return; }
+
+  try {
+    const fd = new FormData();
+    fd.append('file', blob, 'audio.webm');
+    fd.append('model', 'whisper-1');
+    fd.append('language', 'fi');
+    // Käytä osittaista transkriptiota kontekstina Whisperille → parempi jatkotunnistus
+    fd.append('prompt', 'Matematiikan oppitunti. Luvut, murtoluvut. ' + (pendingTranscript || ''));
+    const res  = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST', headers: { Authorization: `Bearer ${openaiKey}` }, body: fd
+    });
+    const newText = (await res.json()).text?.trim();
+
+    if (!newText) {
+      // Ei tunnistettu puhetta — lähetä pending tai kuuntele lisää
+      if (pendingTranscript) { finishTranscription(pendingTranscript); }
+      else { startVoiceInput(); }
+      return;
+    }
+
+    const fullText = pendingTranscript ? pendingTranscript + ' ' + newText : newText;
+
+    // Sisältöpohjainen tarkistus: onko lause valmis?
+    if (!pendingTranscript && !seemsComplete(fullText)) {
+      // Ensimmäinen kierros, lause kesken → odota jatkoa lyhyesti
+      pendingTranscript = fullText;
+      startVoiceInput();   // jatka kuuntelua
+      return;
+    }
+
+    // Lause valmis (tai toinen kierros) → lähetä
+    finishTranscription(fullText);
+
+  } catch (e) {
+    console.warn('Whisper-virhe:', e);
+    pendingTranscript = '';
+    if (voiceEnabled) startVoiceInput();
+  }
+}
+
+function stopVoiceSession() {
+  stopVoiceInput();
+  if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+  if (audioCtx)    { audioCtx.close(); audioCtx = null; }
+  analyser = null;
+}
+
+function setMicUI(state) {
+  const btn   = document.getElementById('mic-btn');
+  const icon  = document.getElementById('voice-icon');
+  const label = document.getElementById('voice-label');
+  if (btn) btn.classList.remove('listening');
+  const S = {
+    recording:        { btn:'⏹', title:'Napauta lopettaaksesi', icon:'🎙', text:'Puhu nyt — napauta kun valmis' },
+    'recording-active':{ btn:'⏹', title:'Napauta lopettaaksesi', icon:'🔴', text:'Kuulen sinut!' },
+    listening:        { btn:'⏹', title:'Napauta lopettaaksesi', icon:'🎙', text:'Puhu nyt!' },
+    speaking:         { btn:'🔈', title:'Botti puhuu',           icon:'🔈', text:'Kuunnellaan...' },
+    waiting:          { btn:'⏳', title:'Odottaa',               icon:'⏳', text:'Mietitään...' },
+    idle:             { btn:'🎤', title:'Puhu',                  icon:'🎂', text:'Puhetila päällä' },
+  };
+  const s = S[state] || S.idle;
+  if (btn) { if (state==='listening') btn.classList.add('listening'); btn.textContent=s.btn; btn.title=s.title; }
+  if (icon)  icon.textContent  = s.icon;
+  if (label) label.textContent = s.text;
+}
+
+function toggleMic() {
+  if (isRecording) stopVoiceInput();       // pysäytä ja lähetä
+  else if (voiceEnabled) startVoiceInput(); // käynnistä manuaalisesti
+  else startVoiceInput();                   // tekstimoodi: käynnistä
+}
+
+function toggleHeadphones() {
+  headphonesMode = !headphonesMode;
+  const btn = document.getElementById('hp-btn');
+  if (!btn) return;
+  if (headphonesMode) {
+    btn.textContent = '🎧 Kuulokkeet';
+    btn.style.background = 'rgba(33,118,232,0.25)';
+    btn.style.borderColor = 'rgba(33,118,232,0.6)';
+  } else {
+    btn.textContent = '🔈 Kaiutin';
+    btn.style.background = '';
+    btn.style.borderColor = '';
+  }
+}
+
+function updateVoiceBtn() {
+  const btn = document.getElementById('voice-btn');
+  if (!btn) return;
+  if (voiceEnabled) {
+    btn.textContent = '🎙 Puhetila päällä';
+    btn.style.background = 'rgba(56,142,60,0.25)';
+    btn.style.borderColor = 'rgba(56,142,60,0.6)';
+  } else {
+    btn.textContent = '🔊 Puhe';
+    btn.style.background = '';
+    btn.style.borderColor = '';
+  }
+}
+
+async function toggleVoice() {
+  voiceEnabled = !voiceEnabled;
+  document.body.classList.toggle('voice-mode', voiceEnabled);
+  updateVoiceBtn();
+  if (voiceEnabled) {
+    const ok = await initMicrophone();
+    if (!ok) { voiceEnabled = false; document.body.classList.remove('voice-mode'); updateVoiceBtn(); return; }
+    // Herätä TTS audiokontext käyttäjän eleellä
+    if (window.speechSynthesis) {
+      const w = new SpeechSynthesisUtterance(''); w.volume = 0;
+      window.speechSynthesis.speak(w);
+      if (!cachedVoices.length) cachedVoices = window.speechSynthesis.getVoices();
+    }
+    startVoiceInput();
+  } else {
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    if (keepAliveTimer) { clearInterval(keepAliveTimer); keepAliveTimer = null; }
+    stopVoiceSession();
+    botSpeaking = false;
+    setMicUI('idle');
+  }
+}
+
+function stopListening() { stopVoiceInput(); }
+
+// ── Murtolukujen lukeminen suomeksi ──
+function numberToFi(n) {
+  if (n === 0) return 'nolla';
+  if (n < 0)  return 'miinus ' + numberToFi(-n);
+  const ones = ['','yksi','kaksi','kolme','neljä','viisi','kuusi','seitsemän','kahdeksan','yhdeksän','kymmenen',
+                'yksitoista','kaksitoista','kolmetoista','neljätoista','viisitoista','kuusitoista',
+                'seitsemäntoista','kahdeksantoista','yhdeksäntoista'];
+  if (n <= 19) return ones[n];
+  const tWords = ['','','kaksi','kolme','neljä','viisi','kuusi','seitsemän','kahdeksan','yhdeksän'];
+  if (n < 100) {
+    const t = Math.floor(n / 10), r = n % 10;
+    const base = (t === 2 ? 'kaksi' : tWords[t]) + 'kymmentä';
+    return r ? base + ones[r] : base;
+  }
+  if (n < 1000) {
+    const h = Math.floor(n / 100), rest = n % 100;
+    const hWord = h === 1 ? 'sata' : ones[h] + 'sataa';
+    return rest > 0 ? hWord + numberToFi(rest) : hWord;
+  }
+  return String(n);
+}
+
+function fractionToFi(num, den) {
+  const n = parseInt(num), d = parseInt(den);
+  // nimittäjän nimi yksikössä ja monikossa
+  const names = {
+    2:  ['puoli',             'puolikasta'],
+    3:  ['kolmasosa',         'kolmasosaa'],
+    4:  ['neljäsosa',         'neljäsosaa'],
+    5:  ['viidesosa',         'viidesosaa'],
+    6:  ['kuudesosa',         'kuudesosaa'],
+    7:  ['seitsemäsosa',      'seitsemäsosaa'],
+    8:  ['kahdeksasosa',      'kahdeksasosaa'],
+    9:  ['yhdeksäsosa',       'yhdeksäsosaa'],
+    10: ['kymmenesosa',       'kymmenesosaa'],
+    12: ['kahdestoistaosa',   'kahdestoistaosaa'],
+    21: ['kahdeskymmenesyhdesosa', 'kahdeskymmenesyhdesosaa'],
+  };
+  const nWord = numberToFi(n);
+  if (!names[d]) return `${nWord} per ${numberToFi(d)}`;
+  const [sing, plur] = names[d];
+  if (n === 1) return sing;           // "kolmasosa"
+  if (d === 2 && n === 1) return 'puoli';
+  return `${nWord} ${plur}`;          // "kolme neljäsosaa"
+}
+
+function cleanForSpeech(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/_{1,2}(.*?)_{1,2}/g, '$1')
+    .replace(/\[.*?\]\(.*?\)/g, '')
+    // 1) Murtoluvut ensin: 3/4 → "kolme neljäsosaa"
+    .replace(/(\d+)\/(\d+)/g, (_, n, d) => fractionToFi(n, d))
+    // 2) Matemaattiset operaattorit välilyönnein ympäröitynä → suomeksi
+    .replace(/\s×\s/g, ' kertaa ')
+    .replace(/\s÷\s/g, ' jaettuna ')
+    .replace(/\s\+\s/g, ' plus ')
+    .replace(/\s[−–]\s/g, ' miinus ')
+    // 3) Kaikki jäljellä olevat kokonaisluvut → suomeksi
+    //    (tehdään VAIN sanojen rajat, jotta ei riko jo muunnettuja tekstejä)
+    .replace(/\b(\d+)\b/g, (_, n) => numberToFi(parseInt(n)))
+    // 4) Poista emojit
+    .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
+    .replace(/[\u2600-\u27BF]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Voices-lista ladataan asynkronisesti (erityisesti Chrome)
+let cachedVoices = [];
+function getVoices() {
+  const v = window.speechSynthesis.getVoices();
+  if (v.length) cachedVoices = v;
+  return cachedVoices;
+}
+if (window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = () => {
+    cachedVoices = window.speechSynthesis.getVoices();
+  };
+}
+
+// Chrome-bugin korjaus: speechSynthesis "jäätyy" välillä
+// Pidetään se hereillä keepAlive-syklillä
+let keepAliveTimer = null;
+function startKeepAlive() {
+  if (keepAliveTimer) return;
+  keepAliveTimer = setInterval(() => {
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.pause();
+      window.speechSynthesis.resume();
+    }
+  }, 10000);
+}
+
+// Botin puhe loppui → käynnistä vasteajan mittaus ja nauhoitus
+function afterSpeech() {
+  botSpeaking      = false;
+  updateStopBtn();
+  questionAskedAt  = Date.now();   // ← oppijan "miettimiskello" käynnistyy
+  pendingTranscript = '';
+  if (voiceEnabled) {
+    const delay = headphonesMode ? 0 : 300;
+    setTimeout(() => { if (voiceEnabled && !waiting) startVoiceInput(); }, delay);
+  } else {
+    setMicUI('idle');
+  }
+}
+
+// Tarkistaa onko suomenkielinen lause todennäköisesti valmis
+function seemsComplete(text) {
+  const words = text.trim().split(/\s+/);
+  const n = words.length;
+  // Selkeä lauseen loppu
+  if (/[.!?]$/.test(text)) return true;
+  // Pitkä lause — riittävästi sisältöä
+  if (n >= 5) return true;
+  // Yksi sana: hyväksytään jos se on luku, kyllä/ei tai matikkavastaus
+  if (n === 1) return /^(kyllä|joo|ei|en|jep|niin|ok|\d+)$/i.test(words[0]);
+  // 2–4 sanaa: valmis jos loppuu lukuun (vastaus matikkakysymykseen)
+  if (/\d+\s*$/.test(text)) return true;
+  // Epätäydellinen: loppuu konjunktioon tai apuverbiin
+  if (/\b(ja|tai|mutta|koska|että|jos|kun|niin|on|oli|olen|sitten)\s*$/i.test(text)) return false;
+  return true;
+}
+
+// Lähettää valmiin transkription + vasteajan Claudelle
+function finishTranscription(text) {
+  const elapsed = questionAskedAt ? Math.round((Date.now() - questionAskedAt) / 1000) : null;
+  questionAskedAt   = null;
+  pendingTranscript = '';
+  const inp = document.getElementById('msg-input');
+  inp.value = text; autoResize(inp);
+  sendMessage(elapsed);
+}
+
+// Etsi paras suomenkielinen selainiääni
+function getBestFinnishVoice() {
+  const voices = getVoices();
+  // 1. Premium/Enhanced suomenkielinen (macOS Satu, Onni tms.)
+  return voices.find(v => v.lang.startsWith('fi') && /premium|enhanced/i.test(v.name))
+      // 2. Mikä tahansa fi-FI (Google Satu Chromessa, Windows fi-FI jne.)
+      || voices.find(v => v.lang === 'fi-FI')
+      || voices.find(v => v.lang.startsWith('fi'))
+      || null;
+}
+
+// Selaimen TTS — käytetään ensisijaisesti jos natiivi suomenkielinen ääni löytyy
+function speakWithBrowser(clean, voice) {
+  if (!window.speechSynthesis) { afterSpeech(); return; }
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(clean);
+  utt.lang  = 'fi-FI';
+  utt.rate  = 0.95;   // hieman rauhallisempi — helpompi lapselle
+  utt.pitch = 1.0;
+  utt.volume = 1.0;
+  const chosen = voice || getBestFinnishVoice();
+  if (chosen) utt.voice = chosen;
+  utt.onend   = afterSpeech;
+  utt.onerror = afterSpeech;
+  startKeepAlive();
+  window.speechSynthesis.speak(utt);
+}
+
+// Pääfunktio: OpenAI nova ensisijaisesti (luonnollisin), selainääni varavaihtoehtona
+async function speak(text) {
+  if (!voiceEnabled) return;
+  const clean = cleanForSpeech(text);
+  if (!clean) return;
+
+  logSpeech(text);   // ← tallenna lokiin ennen siivousta
+  botSpeaking = true;
+  setMicUI('speaking');
+  updateStopBtn();
+
+  // OpenAI TTS on luonnollisin vaihtoehto — käytä aina kun avain löytyy
+  if (!openaiKey) {
+    // Ei avainta → selainääni (suomenkielinen jos löytyy)
+    speakWithBrowser(clean, getBestFinnishVoice());
+    return;
+  }
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/audio/speech', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'tts-1',    // nopeampi kuin tts-1-hd, riittää lyhyille lauseille
+        input: clean,
+        voice: 'nova',
+        speed: 0.92
+      })
+    });
+
+    if (!res.ok) throw new Error(`OpenAI TTS ${res.status}`);
+
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    currentAudio = new Audio(url);
+
+    currentAudio.onended = () => { URL.revokeObjectURL(url); currentAudio = null; afterSpeech(); };
+    currentAudio.onerror = () => { URL.revokeObjectURL(url); currentAudio = null; afterSpeech(); };
+    await currentAudio.play();
+
+  } catch (err) {
+    console.warn('OpenAI TTS -virhe, käytetään selaimen ääntä:', err);
+    speakWithBrowser(clean);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// KÄYNNISTYS
+// ═══════════════════════════════════════════════════════════
+
+window.addEventListener('load', () => {
+  if (apiKey)    document.getElementById('api-key-input').value    = apiKey;
+  if (openaiKey) document.getElementById('openai-key-input').value = openaiKey;
+  updateLogCount();
+  showWelcome();
+});
+
+function showWelcome() {
+  addBotMessage(
+    `Hei! 👋 Olen **Kakkukirja-ohjain**.\n\n` +
+    `Kirjoita tai puhu matikantehtäväsi — löydetään yhdessä oikea Kakkukirjan sivu! 🎂\n\n` +
+    `🎙 **Puhetila** — paina ylhäältä "Puhetila" niin voit puhua suoraan! Botti vastaa ääneen ja kuuntelee sitten sinua.\n\n` +
+    `*(Muista lisätä API-avain ⚙ ensin, jos et ole vielä tehnyt niin.)*`,
+    false
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// SVG-YMPYRÄ
+// ═══════════════════════════════════════════════════════════
+
+function drawCircle(n, size = 110) {
+  const nInt = parseInt(n);
+  const cx = size / 2, cy = size / 2;
+  const r = size / 2 - 7;
+
+  // Väri: käytä luvun omaa väriä (mod 10 yli kymppisten kohdalla)
+  let colorKey = nInt;
+  if (nInt > 10) {
+    const divs = getDivisors(nInt);
+    // käytä suurinta tekijää ≤ 10 paitsi 1
+    colorKey = divs.filter(d => d > 1 && d <= 10).pop() || 1;
+  }
+  const mainColor = COLORS[colorKey] || '#2176E8';
+
+  let paths = '';
+
+  if (nInt === 0) {
+    paths = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#F0EEEA" stroke="#CCC" stroke-width="1.5"/>`;
+  } else if (nInt === 1) {
+    paths  = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#F0EEEA" stroke="#999" stroke-width="1.5"/>`;
+    paths += `<line x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy - r}" stroke="#999" stroke-width="1.5"/>`;
+  } else {
+    for (let i = 0; i < nInt; i++) {
+      const a0 = (i / nInt) * 2 * Math.PI - Math.PI / 2;
+      const a1 = ((i + 1) / nInt) * 2 * Math.PI - Math.PI / 2;
+      const x1 = cx + r * Math.cos(a0), y1 = cy + r * Math.sin(a0);
+      const x2 = cx + r * Math.cos(a1), y2 = cy + r * Math.sin(a1);
+      const la = (1 / nInt) > 0.5 ? 1 : 0;
+      const fill = (i === 0) ? mainColor + 'CC' : '#F0EEEA';
+      paths += `<path d="M${cx},${cy} L${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${la},1 ${x2.toFixed(1)},${y2.toFixed(1)} Z"
+                     fill="${fill}" stroke="#AAA" stroke-width="1"/>`;
+    }
+  }
+
+  const fs = nInt > 99 ? 11 : nInt > 9 ? 15 : 19;
+  paths += `<text x="${cx}" y="${cy + 5}" text-anchor="middle" font-size="${fs}"
+                  font-weight="800" fill="${mainColor}"
+                  font-family="system-ui,-apple-system,sans-serif">${nInt}</text>`;
+
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"
+               xmlns="http://www.w3.org/2000/svg">${paths}</svg>`;
+}
+
+function drawDots(n) {
+  return getDivisors(n).map(d =>
+    `<span class="dot-item">
+       <span class="color-dot" style="background:${COLORS[d]}"></span>
+       <span>${d}</span>
+     </span>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// VIESTIN MUOTOILU JA SIVUNUMEROIDEN TUNNISTUS
+// ═══════════════════════════════════════════════════════════
+
+function formatText(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+}
+
+function extractPageNumbers(text) {
+  // Tunnistaa "sivu X", "sivulle X", "sivulla X", "sivu **X**" jne.
+  const pattern = /\bsivu(?:lle|lla|lta|n|t|a|sta|ksi)?\s+\*{0,2}(\d{1,3})\*{0,2}/gi;
+  const nums = [];
+  let m;
+  while ((m = pattern.exec(text)) !== null) {
+    const n = parseInt(m[1]);
+    if (n >= 0 && n <= 360 && !nums.includes(n)) nums.push(n);
+  }
+  return nums;
+}
+
+// ═══════════════════════════════════════════════════════════
+// CHAT-VIESTIEN LISÄÄMINEN
+// ═══════════════════════════════════════════════════════════
+
+function addBotMessage(text, showCircles = true) {
+  // Laske sivut aina
+  const pages = showCircles ? extractPageNumbers(text) : [];
+  const cardsHtml = pages.map(p => `
+    <div class="page-card">
+      <span class="pg-label">Sivu ${p}</span>
+      ${drawCircle(p)}
+      <div class="dots-row">${drawDots(p)}</div>
+    </div>`).join('');
+
+  if (voiceEnabled) {
+    // PUHETILA: ei tekstikuplaa — vain piirikuvat isona
+    if (cardsHtml) {
+      document.getElementById('voice-circles').innerHTML = cardsHtml;
+    }
+    if (showCircles) speak(text);
+    return;
+  }
+
+  // TEKSTIMOODI: normaali chat-kupla + piirikuvat
+  const chat = document.getElementById('chat');
+  const wrap = document.createElement('div');
+  wrap.className = 'msg-wrap bot';
+  wrap.innerHTML = `
+    <div class="avatar">🎂</div>
+    <div>
+      <div class="bubble">${formatText(text)}</div>
+      ${cardsHtml ? `<div class="pages-row">${cardsHtml}</div>` : ''}
+    </div>`;
+  chat.appendChild(wrap);
+  scrollToBottom();
+  if (showCircles) speak(text);
+}
+
+function addUserMessage(text) {
+  const chat = document.getElementById('chat');
+  const wrap = document.createElement('div');
+  wrap.className = 'msg-wrap user';
+  wrap.innerHTML = `
+    <div class="avatar">👤</div>
+    <div class="bubble">${formatText(text)}</div>`;
+  chat.appendChild(wrap);
+  scrollToBottom();
+}
+
+function addTypingIndicator() {
+  const chat = document.getElementById('chat');
+  const wrap = document.createElement('div');
+  wrap.className = 'msg-wrap bot';
+  wrap.id = 'typing-indicator';
+  wrap.innerHTML = `
+    <div class="avatar">🎂</div>
+    <div class="bubble">
+      <div class="typing">
+        <div class="t-dot"></div>
+        <div class="t-dot"></div>
+        <div class="t-dot"></div>
+      </div>
+    </div>`;
+  chat.appendChild(wrap);
+  scrollToBottom();
+}
+
+function removeTypingIndicator() {
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
+}
+
+function scrollToBottom() {
+  const chat = document.getElementById('chat');
+  chat.scrollTop = chat.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════════════════
+// API-KUTSU
+// ═══════════════════════════════════════════════════════════
+
+async function callClaude(userMessage, responseTimeSec = null) {
+  if (!apiKey) {
+    return '⚙ Lisää ensin API-avain oikeasta yläkulmasta!';
+  }
+
+  // Lisätään piilotettuja metatietoja — näkyvät Claudelle, ei UI:ssa
+  let claudeMsg = userMessage;
+
+  // 1) Vasteaika
+  if (responseTimeSec !== null && responseTimeSec > 0) {
+    claudeMsg = `[vasteaika: ${responseTimeSec}s] ${claudeMsg}`;
+  }
+
+  // 2) Asiasisältösuodatin — kiroilu/trollaus → merkitään Claudelle
+  if (detectInappropriate(userMessage)) {
+    recentInappropriateCount++;
+    const repeatNote = recentInappropriateCount >= 3
+      ? ` [toistuvaa — ${recentInappropriateCount}. kerta peräkkäin]`
+      : '';
+    claudeMsg = `[viesti: asiaton${repeatNote}] ${claudeMsg}`;
+  } else {
+    recentInappropriateCount = 0;  // nollautuu kun tulee asiallinen viesti
+  }
+
+  conversationHistory.push({ role: 'user', content: claudeMsg });
+
+  claudeAbortCtrl = new AbortController();
+  let response;
+  try {
+    response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      signal: claudeAbortCtrl.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 150,
+        system: getDynamicSystemPrompt(),
+        messages: conversationHistory
+      })
+    });
+  } catch (err) {
+    claudeAbortCtrl = null;
+    conversationHistory.pop();
+    if (err.name === 'AbortError') throw new Error('__ABORTED__');
+    throw new Error('Verkkovirhe: ' + err.message);
+  }
+  claudeAbortCtrl = null;
+
+  if (!response.ok) {
+    conversationHistory.pop();
+    const err = await response.json().catch(() => ({}));
+    if (response.status === 401) throw new Error('API-avain ei toimi. Tarkista asetuksista.');
+    if (response.status === 429) throw new Error('Liikaa pyyntöjä. Odota hetki.');
+    throw new Error(err.error?.message || `Virhe ${response.status}`);
+  }
+
+  const data = await response.json();
+  const reply = data.content[0].text;
+  conversationHistory.push({ role: 'assistant', content: reply });
+  return reply;
+}
+
+// ═══════════════════════════════════════════════════════════
+// VIESTIN LÄHETYS
+// ═══════════════════════════════════════════════════════════
+
+async function sendMessage(responseTimeSec = null) {
+  if (waiting) return;
+
+  const input = document.getElementById('msg-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  // Piilota esimerkit ensimmäisen viestin jälkeen
+  document.getElementById('examples').style.display = 'none';
+
+  input.value = '';
+  input.style.height = 'auto';
+
+  window.speechSynthesis && window.speechSynthesis.cancel();
+  botSpeaking = false;
+  stopVoiceInput();   // lopeta nauhoitus kun lähetetään (myös tekstimoodi, no-op jos ei nauhoita)
+  addUserMessage(text);
+  waiting = true;
+  document.getElementById('send-btn').disabled = true;
+  addTypingIndicator();
+  updateStopBtn();
+
+  try {
+    const reply = await callClaude(text, responseTimeSec);
+    removeTypingIndicator();
+    addBotMessage(reply);
+  } catch (err) {
+    removeTypingIndicator();
+    if (err.message !== '__ABORTED__') {
+      addBotMessage(`❌ **Virhe:** ${err.message}`);
+    }
+  }
+
+  updateSessionCount();
+  waiting = false;
+  document.getElementById('send-btn').disabled = false;
+  updateStopBtn();
+  input.focus();
+}
+
+// ═══════════════════════════════════════════════════════════
+// UI-APUFUNKTIOT
+// ═══════════════════════════════════════════════════════════
+
+// ── Stop-nappi ──
+function updateStopBtn() {
+  const btn = document.getElementById('stop-btn');
+  if (!btn) return;
+  const active = waiting || botSpeaking;
+  btn.disabled = !active;
+  btn.classList.toggle('active', active);
+}
+
+function stopBot() {
+  // 1. Keskeytä Claude-fetch
+  if (claudeAbortCtrl) {
+    claudeAbortCtrl.abort();
+    claudeAbortCtrl = null;
+  }
+  // 2. Pysäytä OpenAI TTS -audio
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.src = '';
+    currentAudio = null;
+  }
+  // 3. Pysäytä selaimen TTS
+  window.speechSynthesis && window.speechSynthesis.cancel();
+  // 4. Nollaa tila
+  botSpeaking = false;
+  waiting     = false;
+  // 5. Poista "mietitään..."-indikaattori
+  removeTypingIndicator();
+  // 6. Lopeta nauhoitus
+  stopVoiceInput();
+  // 7. Päivitä UI
+  document.getElementById('send-btn').disabled = false;
+  setMicUI('idle');
+  updateStopBtn();
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+
+function toggleSettings() {
+  document.getElementById('settings').classList.toggle('open');
+}
+
+function saveApiKey() {
+  const val = document.getElementById('api-key-input').value.trim();
+  if (val) {
+    apiKey = val;
+    localStorage.setItem('kk_api_key', val);
+    document.getElementById('settings').classList.remove('open');
+    addBotMessage('✅ Anthropic-avain tallennettu!', false);
+  }
+}
+
+function saveOpenAiKey() {
+  const val = document.getElementById('openai-key-input').value.trim();
+  if (val) {
+    openaiKey = val;
+    localStorage.setItem('kk_openai_key', val);
+    document.getElementById('settings').classList.remove('open');
+    addBotMessage('✅ OpenAI-avain tallennettu! Puhetila käyttää nyt luonnollista ääntä. 🎙', false);
+  }
+}
+
+function useExample(btn) {
+  document.getElementById('examples').style.display = 'none';
+  const input = document.getElementById('msg-input');
+  input.value = btn.textContent;
+  autoResize(input);
+  sendMessage();
+}
+
+function newConversation() {
+  conversationHistory = [];
+  recentInappropriateCount = 0;
+  window.speechSynthesis && window.speechSynthesis.cancel();
+  botSpeaking = false;
+  document.getElementById('chat').innerHTML = '';
+  document.getElementById('voice-circles').innerHTML = '';
+  // Resetoi sessioanalyysi-näkymä
+  const sr = document.getElementById('session-results');
+  if (sr) { sr.style.display = 'none'; sr.textContent = ''; }
+  if (!voiceEnabled) {
+    stopListening();
+    document.getElementById('examples').style.display = 'block';
+  }
+  setMicUI('idle');
+  updateSessionCount();
+  showWelcome();
+  if (!voiceEnabled) document.getElementById('msg-input').focus();
+}
+
+</script>
+</body>
+</html>
