@@ -210,6 +210,63 @@
       animation: micPulse 1s ease-in-out infinite;
     }
     #mic-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* ── Camera button ── */
+    #cam-btn {
+      background: var(--bg); color: var(--text-main);
+      border: 1.5px solid var(--border);
+      width: 44px; height: 44px; border-radius: 50%;
+      cursor: pointer; display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0;
+      font-size: 18px; transition: all 0.2s;
+    }
+    #cam-btn:hover { border-color: var(--c4); background: white; }
+    #cam-btn.has-image {
+      background: var(--c4); color: white;
+      border-color: var(--c4);
+    }
+
+    /* ── Kuvan esikatselu input-alueen yläpuolella ── */
+    #img-preview-bar {
+      display: none;
+      padding: 8px 16px 0;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    #img-preview-bar.visible { display: block; }
+    #img-preview-wrap {
+      position: relative;
+      display: inline-block;
+    }
+    #img-preview {
+      max-height: 80px;
+      max-width: 120px;
+      border-radius: 8px;
+      border: 2px solid var(--c4);
+      object-fit: cover;
+      display: block;
+    }
+    #img-remove-btn {
+      position: absolute;
+      top: -6px; right: -6px;
+      width: 20px; height: 20px;
+      background: var(--c2); color: white;
+      border: none; border-radius: 50%;
+      font-size: 12px; line-height: 1;
+      cursor: pointer; display: flex;
+      align-items: center; justify-content: center;
+    }
+
+    /* ── Kuva chat-bubblessa ── */
+    .bubble img.chat-img {
+      max-width: 100%;
+      max-height: 220px;
+      border-radius: 8px;
+      display: block;
+      margin-bottom: 6px;
+      object-fit: contain;
+    }
+
     @keyframes micPulse {
       0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(232,24,94,0.4); }
       50%       { transform: scale(1.08); box-shadow: 0 0 0 8px rgba(232,24,94,0); }
@@ -380,11 +437,22 @@
 
 <!-- ═══ INPUT ═══ -->
 <div id="input-area">
+  <!-- Kuvan esikatselu -->
+  <div id="img-preview-bar">
+    <div id="img-preview-wrap">
+      <img id="img-preview" src="" alt="Kuva" />
+      <button id="img-remove-btn" onclick="clearPendingImage()" title="Poista kuva">✕</button>
+    </div>
+  </div>
+  <!-- Piilotettu tiedostovalitsin — mobiililla avaa kameran tai gallerian -->
+  <input type="file" id="img-input" accept="image/*" style="display:none"
+         onchange="handleImageSelect(this)" />
   <div class="input-row">
     <textarea id="msg-input" rows="1"
               placeholder="Kirjoita tai puhu matikantehtäväsi..."
               onkeydown="handleKey(event)"
               oninput="autoResize(this)"></textarea>
+    <button id="cam-btn" onclick="document.getElementById('img-input').click()" title="Lisää kuva tehtävästä">📷</button>
     <button id="mic-btn" onclick="toggleMic()" title="Puhu">🎤</button>
     <button id="send-btn" onclick="sendMessage()">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
@@ -680,6 +748,64 @@ function detectInappropriate(text) {
   return INAPPROPRIATE_PATTERNS.some(p => p.test(text));
 }
 
+// ═══════════════════════════════════════════════════════════
+// KUVANKÄSITTELY
+// ═══════════════════════════════════════════════════════════
+
+// Pienentää kuvan max 1568px pitkimmälle sivulle ja palauttaa base64-JPEG
+function resizeImage(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      const MAX = 1568;
+      if (width > MAX || height > MAX) {
+        if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+        else                { width  = Math.round(width  * MAX / height); height = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          resolve({ data: reader.result.split(',')[1], mediaType: 'image/jpeg' });
+        };
+        reader.readAsDataURL(blob);
+      }, 'image/jpeg', 0.85);
+    };
+    img.src = url;
+  });
+}
+
+async function handleImageSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';  // nollataan jotta sama kuva voidaan valita uudelleen
+
+  pendingImage = await resizeImage(file);
+
+  // Näytetään esikatselu
+  const bar  = document.getElementById('img-preview-bar');
+  const prev = document.getElementById('img-preview');
+  prev.src = 'data:image/jpeg;base64,' + pendingImage.data;
+  bar.classList.add('visible');
+
+  // Päivitetään kamera-nappi
+  document.getElementById('cam-btn').classList.add('has-image');
+  document.getElementById('msg-input').focus();
+}
+
+function clearPendingImage() {
+  pendingImage = null;
+  const bar = document.getElementById('img-preview-bar');
+  bar.classList.remove('visible');
+  document.getElementById('img-preview').src = '';
+  document.getElementById('cam-btn').classList.remove('has-image');
+}
+
 // Dynaamisesti laajennettu system prompt — sisältää löydetyt lisäkorjaukset
 function getDynamicSystemPrompt() {
   if (extraFixes.length === 0) return SYSTEM_PROMPT;
@@ -887,6 +1013,7 @@ let botSpeaking        = false;
 let headphonesMode     = false;   // kuulokkeet = ei echoa → luonnollisempi rytmi
 let currentAudio       = null;    // käynnissä oleva OpenAI TTS -audio
 let claudeAbortCtrl    = null;    // AbortController Claude-fetchille
+let pendingImage       = null;    // { data: base64, mediaType: 'image/jpeg' }
 let questionAskedAt    = null;    // aikaleima: milloin botti lopetti puhumisen
 let pendingTranscript  = '';      // osittainen transkriptio (sisältöpohjainen jatko)
 
@@ -1470,13 +1597,17 @@ function addBotMessage(text, showCircles = true) {
   if (showCircles) speak(text);
 }
 
-function addUserMessage(text) {
+function addUserMessage(text, imageData = null) {
   const chat = document.getElementById('chat');
   const wrap = document.createElement('div');
   wrap.className = 'msg-wrap user';
+  const imgHtml = imageData
+    ? `<img class="chat-img" src="data:${imageData.mediaType};base64,${imageData.data}" alt="Kuva tehtävästä">`
+    : '';
+  const textHtml = text ? formatText(text) : '';
   wrap.innerHTML = `
     <div class="avatar">👤</div>
-    <div class="bubble">${formatText(text)}</div>`;
+    <div class="bubble">${imgHtml}${textHtml}</div>`;
   chat.appendChild(wrap);
   scrollToBottom();
 }
@@ -1513,7 +1644,7 @@ function scrollToBottom() {
 // API-KUTSU
 // ═══════════════════════════════════════════════════════════
 
-async function callClaude(userMessage, responseTimeSec = null) {
+async function callClaude(userMessage, responseTimeSec = null, imageData = null) {
   if (!apiKey) {
     return '⚙ Lisää ensin API-avain oikeasta yläkulmasta!';
   }
@@ -1534,10 +1665,21 @@ async function callClaude(userMessage, responseTimeSec = null) {
       : '';
     claudeMsg = `[viesti: asiaton${repeatNote}] ${claudeMsg}`;
   } else {
-    recentInappropriateCount = 0;  // nollautuu kun tulee asiallinen viesti
+    recentInappropriateCount = 0;
   }
 
-  conversationHistory.push({ role: 'user', content: claudeMsg });
+  // 3) Rakennetaan message content — kuva + teksti tai pelkkä teksti
+  let messageContent;
+  if (imageData) {
+    messageContent = [
+      { type: 'image', source: { type: 'base64', media_type: imageData.mediaType, data: imageData.data } },
+      { type: 'text',  text: claudeMsg || 'Mikä tässä tehtävässä on hankalaa?' }
+    ];
+  } else {
+    messageContent = claudeMsg;
+  }
+
+  conversationHistory.push({ role: 'user', content: messageContent });
 
   claudeAbortCtrl = new AbortController();
   let response;
@@ -1588,8 +1730,10 @@ async function sendMessage(responseTimeSec = null) {
   if (waiting) return;
 
   const input = document.getElementById('msg-input');
-  const text = input.value.trim();
-  if (!text) return;
+  const text  = input.value.trim();
+
+  // Vaaditaan joko teksti tai kuva
+  if (!text && !pendingImage) return;
 
   // Piilota esimerkit ensimmäisen viestin jälkeen
   document.getElementById('examples').style.display = 'none';
@@ -1597,17 +1741,21 @@ async function sendMessage(responseTimeSec = null) {
   input.value = '';
   input.style.height = 'auto';
 
+  // Otetaan kuva talteen ennen kuin clearPendingImage nollaa sen
+  const imageSnap = pendingImage;
+  clearPendingImage();
+
   window.speechSynthesis && window.speechSynthesis.cancel();
   botSpeaking = false;
-  stopVoiceInput();   // lopeta nauhoitus kun lähetetään (myös tekstimoodi, no-op jos ei nauhoita)
-  addUserMessage(text);
+  stopVoiceInput();
+  addUserMessage(text, imageSnap);
   waiting = true;
   document.getElementById('send-btn').disabled = true;
   addTypingIndicator();
   updateStopBtn();
 
   try {
-    const reply = await callClaude(text, responseTimeSec);
+    const reply = await callClaude(text, responseTimeSec, imageSnap);
     removeTypingIndicator();
     addBotMessage(reply);
   } catch (err) {
@@ -1711,6 +1859,7 @@ function useExample(btn) {
 function newConversation() {
   conversationHistory = [];
   recentInappropriateCount = 0;
+  clearPendingImage();
   window.speechSynthesis && window.speechSynthesis.cancel();
   botSpeaking = false;
   document.getElementById('chat').innerHTML = '';
