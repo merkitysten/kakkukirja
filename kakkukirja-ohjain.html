@@ -135,15 +135,21 @@
     .bubble strong { font-weight: 700; }
 
     /* ── Page card (circle visualization) ── */
-    .pages-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+    .pages-row { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
     .page-card {
       display: inline-flex; flex-direction: column; align-items: center;
       background: var(--bg); border: 1.5px solid var(--border);
-      border-radius: 12px; padding: 12px 14px; gap: 6px;
+      border-radius: 14px; padding: 14px 16px; gap: 8px;
+      min-width: 160px;
     }
     .pg-label {
-      font-size: 0.7rem; color: var(--text-sub);
-      font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+      font-size: 0.72rem; color: var(--text-sub);
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+      text-align: center; line-height: 1.3;
+    }
+    .kalvo-badge {
+      font-size: 0.68rem; font-weight: 800; letter-spacing: 0.04em;
+      border-radius: 8px; padding: 2px 8px;
     }
     .dots-row { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
     .dot-item { display: flex; align-items: center; gap: 3px; font-size: 0.72rem; }
@@ -358,9 +364,28 @@
     }
     #analysis-toast.visible { opacity: 1; }
 
-    @media (max-width: 500px) {
-      .bubble { max-width: 88%; }
-      .page-card { padding: 8px 10px; }
+    @media (max-width: 600px) {
+      /* Header: pienempi, alaotsikko pois */
+      header { padding: 10px 12px; gap: 6px; }
+      .header-title p { display: none; }
+      .header-title h1 { font-size: 0.88rem; }
+      .logo { font-size: 20px; }
+
+      /* Header-napit: pienempiä, mahdollisesti kaksi riviä */
+      .header-buttons { gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+      .hdr-btn { padding: 5px 8px; font-size: 0.72rem; }
+
+      /* Chat: vähemmän sisennystä */
+      #chat { padding: 12px 10px 6px; }
+      .bubble { max-width: 90%; font-size: 0.95rem; }
+
+      /* Sivukortit: pienempi SVG, ei min-leveys */
+      .pages-row { gap: 10px; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
+      .page-card { padding: 10px 12px; min-width: 0; flex-shrink: 0; }
+      .page-card svg { width: 130px !important; height: 130px !important; }
+
+      /* Syöttörivi */
+      #input-bar { padding: 8px 10px; gap: 7px; }
     }
   </style>
 </head>
@@ -670,6 +695,35 @@ MUUT OHJEET:
 • Yksi kysymys tai ohje kerrallaan — lyhyesti
 • Jos väärä: ohjaa lempeästi: "Ei ihan, kokeile uudelleen! 💪"
 • Jos oppija on lukossa TAI pyytää suoraa vastausta: anna vihje tai kerro vastaus ja jatka
+• ÄLÄ koskaan mainitse oikeaa sivunumeroa ennen kuin oppijalla on ollut mahdollisuus keksiä se itse
+
+═══ APUKUVAT JA OPPIJAN OMA KIRJA ═══
+
+Läksykamun näyttämät ympyräkuvat (sivukortit) ovat viimesijainen apu — ei pääasia.
+
+TÄRKEYSJÄRJESTYS:
+1. Oppijan oma ajattelu — anna aina ensin mahdollisuus miettiä itse
+2. Oppijan oma fyysinen Kakkukirja — ohjaa etsimään sieltä
+3. Apukuva — näytetään vain jos oppija on selvästi jumissa eikä pärjää kirjankaan kanssa
+
+OHJAUSASKELEET — noudata tätä järjestystä:
+ASKEL A — Kysy ensin: anna oppijalle mahdollisuus vastata tai kokeilla itse. Odota.
+ASKEL B — Jos jumissa: ohjaa kirjaan, älä kuvaan:
+  "Etsi omasta Kakkukirjastasi sivu, jossa ympyrä on jaettu neljään yhtä suureen osaan. Sano kun olet löytänyt — tai jos tarvitset lisäohjeita!"
+  ÄLÄ mainitse sivunumeroa vielä.
+ASKEL C — Jos edelleen jumissa: kerro sivunumero JA mainitse se tekstissä → apukuva ilmestyy automaattisesti.
+ASKEL D — Jos kalvoa tarvitaan: mainitse "kalvo N sivulle M" tekstissä → apukuva päivittyy automaattisesti näyttämään värityksen.
+
+TÄRKEÄÄ — ÄLÄ näytä apukuvia turhaan:
+• ÄLÄ mainitse sivunumeroita vaiheessa A tai B — apukuva syntyy vain kun mainitset sivun
+• Oppijan katse pitää olla pääasiassa omassa kirjassa
+• Apukuva on välivaihe — sen avulla oppija saa riittävän ymmärryksen löytääkseen vastaavan sivun omasta kirjastaan
+• Apukuva on onnistunut silloin kun se johtaa oppijan takaisin omaan kirjaan
+
+TUNNISTUSHÄIRIÖ — merkki [tunnistushäiriö:] tarkoittaa puheentunnistuksen virhettä:
+• Kysy rauhallisesti: "Kuulinko oikein? Sanoit [X] — tarkoititko jotain muuta?"
+• ÄLÄ jatka tehtävää ennen kuin asia on selvä
+
 • ÄLÄ koskaan mainitse oikeaa sivunumeroa ennen kuin oppijalla on ollut mahdollisuus keksiä se itse
 
 LAPSIYSTÄVÄLLINEN TYYLI — tämä on tärkein:
@@ -1585,20 +1639,49 @@ function speakWithBrowser(clean, voice) {
   window.speechSynthesis.speak(utt);
 }
 
+// ── AudioContext-pohjainen toisto (iOS-yhteensopiva) ──
+// iOS:ssä new Audio().play() ei toimi async-kontekstissa eikä kuule silent-kytkin.
+// AudioContext kiertää molemmat ongelmat — käytetään aina kun mahdollista.
+let ttsSource = null;  // käynnissä oleva AudioBufferSourceNode
+
+async function playWithAudioContext(arrayBuffer) {
+  // Varmista että AudioContext on olemassa ja hereillä
+  if (!audioCtx || audioCtx.state === 'closed') {
+    audioCtx = new AudioContext();
+  }
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+  const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+  ttsSource = audioCtx.createBufferSource();
+  ttsSource.buffer = audioBuffer;
+  ttsSource.connect(audioCtx.destination);
+
+  return new Promise((resolve) => {
+    ttsSource.onended = () => { ttsSource = null; resolve(); };
+    ttsSource.start(0);
+  });
+}
+
+// Pysäyttää AudioContext-toiston (Stop-nappi)
+function stopAudioContext() {
+  if (ttsSource) {
+    try { ttsSource.stop(); } catch (_) {}
+    ttsSource = null;
+  }
+}
+
 // Pääfunktio: OpenAI nova ensisijaisesti (luonnollisin), selainääni varavaihtoehtona
 async function speak(text) {
   if (!voiceEnabled) return;
   const clean = cleanForSpeech(text);
   if (!clean) return;
 
-  logSpeech(text);   // ← tallenna lokiin ennen siivousta
+  logSpeech(text);
   botSpeaking = true;
   setMicUI('speaking');
   updateStopBtn();
 
-  // OpenAI TTS on luonnollisin vaihtoehto — käytä aina kun avain löytyy
   if (!openaiKey) {
-    // Ei avainta → selainääni (suomenkielinen jos löytyy)
     speakWithBrowser(clean, getBestFinnishVoice());
     return;
   }
@@ -1611,7 +1694,7 @@ async function speak(text) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'tts-1',    // nopeampi kuin tts-1-hd, riittää lyhyille lauseille
+        model: 'tts-1',
         input: clean,
         voice: 'nova',
         speed: 0.92
@@ -1620,13 +1703,11 @@ async function speak(text) {
 
     if (!res.ok) throw new Error(`OpenAI TTS ${res.status}`);
 
-    const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    currentAudio = new Audio(url);
+    const arrayBuffer = await res.arrayBuffer();
 
-    currentAudio.onended = () => { URL.revokeObjectURL(url); currentAudio = null; afterSpeech(); };
-    currentAudio.onerror = () => { URL.revokeObjectURL(url); currentAudio = null; afterSpeech(); };
-    await currentAudio.play();
+    // Käytä AudioContext — toimii iOS:ssä myös silent-kytkimellä ja async-kontekstissa
+    await playWithAudioContext(arrayBuffer);
+    afterSpeech();
 
   } catch (err) {
     console.warn('OpenAI TTS -virhe, käytetään selaimen ääntä:', err);
@@ -1660,26 +1741,29 @@ function showWelcome() {
 // SVG-YMPYRÄ
 // ═══════════════════════════════════════════════════════════
 
-function drawCircle(n, size = 110) {
+// highlightCount = montako sektoria värittyy (0 = ei yhtään = pelkkä sivu)
+// highlightColor = väri hex-muodossa (null = luvun oma väri)
+function drawCircle(n, size = 180, highlightCount = 0, highlightColor = null) {
   const nInt = parseInt(n);
   const cx = size / 2, cy = size / 2;
-  const r = size / 2 - 7;
+  const r = size / 2 - 8;
 
-  // Väri: käytä luvun omaa väriä (mod 10 yli kymppisten kohdalla)
   let colorKey = nInt;
   if (nInt > 10) {
     const divs = getDivisors(nInt);
-    // käytä suurinta tekijää ≤ 10 paitsi 1
     colorKey = divs.filter(d => d > 1 && d <= 10).pop() || 1;
   }
-  const mainColor = COLORS[colorKey] || '#2176E8';
+  const mainColor  = COLORS[colorKey] || '#2176E8';
+  const fillActive = (highlightColor || mainColor) + 'CC';  // väri kalvolle
+  const fillEmpty  = '#F0EEEA';                              // neutraali sektori
 
   let paths = '';
 
   if (nInt === 0) {
-    paths = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#F0EEEA" stroke="#CCC" stroke-width="1.5"/>`;
+    paths = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fillEmpty}" stroke="#CCC" stroke-width="1.5"/>`;
   } else if (nInt === 1) {
-    paths  = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#F0EEEA" stroke="#999" stroke-width="1.5"/>`;
+    const fill = highlightCount >= 1 ? fillActive : fillEmpty;
+    paths  = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}" stroke="#999" stroke-width="1.5"/>`;
     paths += `<line x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy - r}" stroke="#999" stroke-width="1.5"/>`;
   } else {
     for (let i = 0; i < nInt; i++) {
@@ -1688,19 +1772,55 @@ function drawCircle(n, size = 110) {
       const x1 = cx + r * Math.cos(a0), y1 = cy + r * Math.sin(a0);
       const x2 = cx + r * Math.cos(a1), y2 = cy + r * Math.sin(a1);
       const la = (1 / nInt) > 0.5 ? 1 : 0;
-      const fill = (i === 0) ? mainColor + 'CC' : '#F0EEEA';
+      const fill = i < highlightCount ? fillActive : fillEmpty;
       paths += `<path d="M${cx},${cy} L${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${la},1 ${x2.toFixed(1)},${y2.toFixed(1)} Z"
                      fill="${fill}" stroke="#AAA" stroke-width="1"/>`;
     }
   }
 
-  const fs = nInt > 99 ? 11 : nInt > 9 ? 15 : 19;
-  paths += `<text x="${cx}" y="${cy + 5}" text-anchor="middle" font-size="${fs}"
-                  font-weight="800" fill="${mainColor}"
+  // Luvun numero ympyrän sisällä — pienempi ja läpikuultava, ei vie huomiota
+  const fs = nInt > 99 ? 13 : nInt > 9 ? 17 : 22;
+  paths += `<text x="${cx}" y="${cy + 7}" text-anchor="middle" font-size="${fs}"
+                  font-weight="900" fill="${mainColor}" opacity="0.35"
                   font-family="system-ui,-apple-system,sans-serif">${nInt}</text>`;
 
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"
                xmlns="http://www.w3.org/2000/svg">${paths}</svg>`;
+}
+
+// Tunnistaa botin tekstistä "kalvo X sivulla/sivulle Y" ja "sivu X + kalvo Y" -yhdistelmät
+function extractKalvoMentions(text) {
+  const results = [];
+  // kalvo N ... sivu M (N ≤ 10, M 0–360)
+  const p1 = /\bkalvo(?:lla|a|n)?\s+\*{0,2}(\d{1,2})\*{0,2}[^.!?\n]{0,40}?sivu(?:lle|lla|lta|n|a|sta)?\s+\*{0,2}(\d{1,3})\*{0,2}/gi;
+  // sivu M ... kalvo N
+  const p2 = /\bsivu(?:lle|lla|lta|n|a|sta)?\s+\*{0,2}(\d{1,3})\*{0,2}[^.!?\n]{0,40}?\+?\s*kalvo(?:lla|a|n)?\s+\*{0,2}(\d{1,2})\*{0,2}/gi;
+  let m;
+  while ((m = p1.exec(text)) !== null) {
+    const kalvo = parseInt(m[1]), sivu = parseInt(m[2]);
+    if (kalvo > 0 && kalvo <= 10 && sivu >= 0 && sivu <= 360)
+      results.push({ kalvo, sivu });
+  }
+  while ((m = p2.exec(text)) !== null) {
+    const sivu = parseInt(m[1]), kalvo = parseInt(m[2]);
+    if (kalvo > 0 && kalvo <= 10 && sivu >= 0 && sivu <= 360)
+      if (!results.some(r => r.kalvo === kalvo && r.sivu === sivu))
+        results.push({ kalvo, sivu });
+  }
+  return results;
+}
+
+// Piirtää sivun kalvon kanssa — sektoreita kalvon verran värittyy
+function drawPageWithKalvo(sivu, kalvo, laps = 1) {
+  const sectorsPerLap = (sivu > 0 && kalvo > 0) ? Math.round(sivu / kalvo) : 0;
+  const highlighted   = Math.min(sectorsPerLap * laps, sivu);
+  const kalvoColor    = COLORS[kalvo] || '#2176E8';
+  const circle        = drawCircle(sivu, 180, highlighted, kalvoColor);
+  const badge         = `<span class="kalvo-badge"
+    style="background:${kalvoColor}22;color:${kalvoColor};border:1.5px solid ${kalvoColor}88;">
+    📐 Kalvo ${kalvo}
+  </span>`;
+  return { circle, badge, sectorsPerLap, highlighted };
 }
 
 function drawDots(n) {
@@ -1739,14 +1859,38 @@ function extractPageNumbers(text) {
 // ═══════════════════════════════════════════════════════════
 
 function addBotMessage(text, showCircles = true) {
-  // Laske sivut aina
-  const pages = showCircles ? extractPageNumbers(text) : [];
-  const cardsHtml = pages.map(p => `
+  const pages         = showCircles ? extractPageNumbers(text) : [];
+  const kalvoMentions = showCircles ? extractKalvoMentions(text) : [];
+
+  // Sivut jotka näytetään kalvo-kombinaatiokorttina (ei toisteta pelkkänä sivuna)
+  const kalvoSivuSet = new Set(kalvoMentions.map(k => k.sivu));
+
+  // Kalvo+sivu -kortit ensin
+  const kalvoCards = kalvoMentions.map(({ kalvo, sivu }) => {
+    const { circle, badge, sectorsPerLap } = drawPageWithKalvo(sivu, kalvo, 1);
+    const label = sectorsPerLap > 0
+      ? `Sivu ${sivu} + kalvo ${kalvo} = ${sectorsPerLap} viipaletta`
+      : `Sivu ${sivu} + kalvo ${kalvo}`;
+    return `
+    <div class="page-card">
+      <span class="pg-label">${label}</span>
+      ${circle}
+      ${badge}
+      <div class="dots-row">${drawDots(sivu)}</div>
+    </div>`;
+  });
+
+  // Pelkät sivukortit (ilman kalvoa = ei väriä)
+  const plainCards = pages
+    .filter(p => !kalvoSivuSet.has(p))
+    .map(p => `
     <div class="page-card">
       <span class="pg-label">Sivu ${p}</span>
-      ${drawCircle(p)}
+      ${drawCircle(p, 180, 0)}
       <div class="dots-row">${drawDots(p)}</div>
-    </div>`).join('');
+    </div>`);
+
+  const cardsHtml = [...kalvoCards, ...plainCards].join('');
 
   if (voiceEnabled) {
     // PUHETILA: ei tekstikuplaa — vain piirikuvat isona
@@ -1991,7 +2135,8 @@ function stopBot() {
     claudeAbortCtrl.abort();
     claudeAbortCtrl = null;
   }
-  // 2. Pysäytä OpenAI TTS -audio
+  // 2. Pysäytä OpenAI TTS (AudioContext tai vanha Audio-elementti)
+  stopAudioContext();
   if (currentAudio) {
     currentAudio.pause();
     currentAudio.src = '';
