@@ -344,6 +344,20 @@
     }
     #session-results.error { background: #FFF3F0; border-color: #FFCDD2; }
 
+    /* ── Autoanalyysi-toast ── */
+    #analysis-toast {
+      position: fixed;
+      bottom: 80px; left: 50%;
+      transform: translateX(-50%);
+      background: var(--c1); color: white;
+      padding: 10px 20px; border-radius: 20px;
+      font-size: 0.85rem; font-family: inherit;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.3s;
+      z-index: 999; white-space: nowrap;
+    }
+    #analysis-toast.visible { opacity: 1; }
+
     @media (max-width: 500px) {
       .bubble { max-width: 88%; }
       .page-card { padding: 8px 10px; }
@@ -402,13 +416,26 @@
   <!-- ── Sessioanalyysi ── -->
   <div style="margin-top:16px; border-top:1px solid var(--border); padding-top:14px;">
     <label>Sessioanalyysi <span id="session-msg-count" style="font-weight:400;color:var(--text-sub)">(0 vuoroa)</span></label>
-    <p>Lähettää koko keskusteluhistorian Claudelle, joka tunnistaa hetket joissa oppija ilmaisi hämmennystä ja antaa parannusehdotuksia botin ilmaisuihin.</p>
+    <p>Analyysi käynnistyy automaattisesti kun painat "↺ Uusi". Voit myös käynnistää sen manuaalisesti.</p>
     <div class="api-row" style="flex-wrap:wrap;gap:6px;">
-      <button class="save-btn" style="background:#2176E8" onclick="analyzeSession()" title="Analysoi koko sessio pedagogisesti">📊 Analysoi sessio</button>
+      <button class="save-btn" style="background:#2176E8" onclick="analyzeSession(true)" title="Analysoi koko sessio pedagogisesti">📊 Analysoi nyt</button>
     </div>
     <div id="session-results"></div>
   </div>
+
+  <!-- ── Analyysipäiväkirja ── -->
+  <div style="margin-top:16px; border-top:1px solid var(--border); padding-top:14px;">
+    <label>Analyysipäiväkirja <span id="analyses-count" style="font-weight:400;color:var(--text-sub)">(0 tallennettua)</span></label>
+    <p>Jokaisen session analyysi tallentuu automaattisesti. Lataa päiväkirja tiedostona ja avaa se Cowork-sessiossa — voidaan käydä läpi yhdessä.</p>
+    <div class="api-row" style="flex-wrap:wrap;gap:6px;">
+      <button class="save-btn" style="background:#388E3C" onclick="downloadAnalyses()" title="Lataa kaikki analyysit tiedostona">⬇ Lataa päiväkirja</button>
+      <button class="save-btn" style="background:#6B6860" onclick="clearAnalyses()" title="Tyhjennä analyysipäiväkirja">🗑 Tyhjennä</button>
+    </div>
+  </div>
 </div>
+
+<!-- Toast-ilmoitus autoanalyysistä -->
+<div id="analysis-toast"></div>
 
 <!-- ═══ CHAT ═══ -->
 <div id="chat"></div>
@@ -705,8 +732,9 @@ let openaiKey = localStorage.getItem('kk_openai_key') || '';
 let waiting   = false;
 
 // ── Puheloki ja kielentarkastus ──
-let speechLog   = JSON.parse(localStorage.getItem('kk_speech_log')   || '[]');
-let extraFixes  = JSON.parse(localStorage.getItem('kk_extra_fixes')  || '[]');
+let speechLog        = JSON.parse(localStorage.getItem('kk_speech_log')       || '[]');
+let extraFixes       = JSON.parse(localStorage.getItem('kk_extra_fixes')      || '[]');
+let sessionAnalyses  = JSON.parse(localStorage.getItem('kk_session_analyses') || '[]');
 
 function logSpeech(text) {
   speechLog.push({ t: new Date().toISOString(), s: text });
@@ -726,6 +754,125 @@ function updateSessionCount() {
     const turns = conversationHistory.filter(m => m.role === 'user' || m.role === 'assistant').length;
     el.textContent = `(${turns} vuoroa)`;
   }
+}
+
+function updateAnalysesCount() {
+  const el = document.getElementById('analyses-count');
+  if (el) el.textContent = `(${sessionAnalyses.length} tallennettua)`;
+}
+
+function saveAnalysisToLog(dialogue, analysisText, turnCount, rawHistory) {
+  // Tallenna raakahistoria ilman base64-kuvia (korvataan [kuva]-tunnisteella)
+  const cleanHistory = (rawHistory || []).map(msg => {
+    if (Array.isArray(msg.content)) {
+      // Kuvaviesti: poistetaan base64-data, pidetään teksti
+      const cleanParts = msg.content.map(part => {
+        if (part.type === 'image') return { type: 'image', source: '[kuva poistettu tilansäästön vuoksi]' };
+        return part;
+      });
+      return { role: msg.role, content: cleanParts };
+    }
+    return { role: msg.role, content: msg.content };
+  });
+
+  const entry = {
+    pvm:        new Date().toLocaleString('fi-FI'),
+    vuoroja:    turnCount,
+    dialogi:    dialogue,
+    analyysi:   analysisText,
+    viestit:    cleanHistory   // ← raaka viestiloki tallessa
+  };
+  sessionAnalyses.push(entry);
+  if (sessionAnalyses.length > 100) sessionAnalyses = sessionAnalyses.slice(-100);
+  localStorage.setItem('kk_session_analyses', JSON.stringify(sessionAnalyses));
+  updateAnalysesCount();
+}
+
+function showToast(msg, durationMs = 3000) {
+  const t = document.getElementById('analysis-toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('visible');
+  setTimeout(() => t.classList.remove('visible'), durationMs);
+}
+
+function downloadAnalyses() {
+  if (sessionAnalyses.length === 0) { alert('Ei tallennettuja analyyseja.'); return; }
+  let out = `LÄKSYKAMU — ANALYYSIPÄIVÄKIRJA\nLadattu: ${new Date().toLocaleString('fi-FI')}\n`;
+  out += `═══════════════════════════════════════════════════\n\n`;
+  sessionAnalyses.forEach((e, i) => {
+    out += `SESSION ${i + 1} — ${e.pvm} (${e.vuoroja} vuoroa)\n`;
+    out += `───────────────────────────────────────────────────\n`;
+    out += `ANALYYSI:\n${e.analyysi}\n\n`;
+
+    // Raakadialogi viesteistä (uudemmat sessiot)
+    if (e.viestit && e.viestit.length > 0) {
+      out += `RAAKADIALOGI (viesti kerrallaan):\n`;
+      e.viestit.forEach((msg, mi) => {
+        const rooli = msg.role === 'user' ? '👤 OPPIJA' : '🤖 LÄKSYKAMU';
+        let teksti = '';
+        if (Array.isArray(msg.content)) {
+          teksti = msg.content.map(p => p.type === 'text' ? p.text : p.type === 'image' ? '[kuva]' : '').join(' ').trim();
+        } else {
+          teksti = msg.content || '';
+        }
+        out += `  [${mi + 1}] ${rooli}: ${teksti}\n`;
+      });
+      out += '\n';
+    } else {
+      // Vanhan muodon varmuuskopio — näytetään tekstidialogi
+      out += `DIALOGI:\n${e.dialogi}\n`;
+    }
+
+    out += `═══════════════════════════════════════════════════\n\n`;
+  });
+  const blob = new Blob([out], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `laksykamu-analyysit-${new Date().toISOString().slice(0,10)}.txt`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function clearAnalyses() {
+  if (!confirm(`Tyhjennetäänkö analyysipäiväkirja (${sessionAnalyses.length} sessiota)?`)) return;
+  sessionAnalyses = [];
+  localStorage.removeItem('kk_session_analyses');
+  updateAnalysesCount();
+}
+
+// ── Hyvästelytunnistus ──
+const GOODBYE_PATTERNS = [
+  /\b(moi\s*moi|moikka\w*|heipp\w*|heips|hei\s*hei|näkemiin|näkemisiin|hyvästi|kuulemiin|bye[\s-]*bye|byebye|goodbye|ciao|adios)\b/i,
+  /^(ok|okei|selvä|selvä?s?)\s*(nyt\s*)?(lopetan|lähden|pitää\s+mennä|täytyy\s+mennä)/i,
+  /\blopetan\s+nyt\b/i,
+];
+
+const GOODBYE_RESPONSES = [
+  'Heippa! 👋 Hyvää harjoittelua — olen tässä kun tarvitset.',
+  'Moi moi! 👋 Palataan asiaan kun sopii.',
+  'Näkemiin! 👋 Hyvin meni tänään.',
+  'Heippa! 👋 Loistava sessio — hyvää päivänjatkoa!',
+];
+
+function detectGoodbye(text) {
+  return GOODBYE_PATTERNS.some(p => p.test(text.trim()));
+}
+
+// ── Haamufraasin tunnistus ──
+// Seuraa viimeisiä viestejä — sama fraasi ≥2× lyhyen ajan sisällä = tunnistusvirhe
+let recentUserMsgs = [];  // normalisoidut viestit, max 10
+
+function detectGhostPhrase(text) {
+  const normalized = text.trim().toLowerCase().replace(/\s+/g, ' ');
+  const count = recentUserMsgs.filter(m => m === normalized).length;
+  return count >= 2 && normalized.length > 4;
+}
+
+function trackUserMsg(text) {
+  const normalized = text.trim().toLowerCase().replace(/\s+/g, ' ');
+  recentUserMsgs.push(normalized);
+  if (recentUserMsgs.length > 10) recentUserMsgs = recentUserMsgs.slice(-10);
 }
 
 // ── Asiasisältösuodatin ──
@@ -882,52 +1029,73 @@ async function checkFinnishQuality() {
   }
 }
 
-async function analyzeSession() {
-  if (!apiKey) { alert('Lisää ensin Anthropic API-avain asetuksista.'); return; }
+async function analyzeSession(showPanel = false) {
+  if (!apiKey) { if (showPanel) alert('Lisää ensin Anthropic API-avain asetuksista.'); return; }
 
-  // Suodatetaan vain aito dialogi (pois järjestelmäviestit)
   const history = conversationHistory.filter(m => m.role === 'user' || m.role === 'assistant');
 
   if (history.length < 4) {
-    alert('Sessio on liian lyhyt analysoitavaksi. Käy ensin pidempään keskustelussa!');
+    if (showPanel) alert('Sessio on liian lyhyt analysoitavaksi. Käy ensin pidempään keskustelussa!');
     return;
   }
 
   const resultsEl = document.getElementById('session-results');
-  resultsEl.className = '';
-  resultsEl.style.display = 'block';
-  resultsEl.textContent = '⏳ Analysoidaan sessio…';
+  if (showPanel) {
+    resultsEl.className = '';
+    resultsEl.style.display = 'block';
+    resultsEl.textContent = '⏳ Analysoidaan sessio…';
+  }
 
-  // Muotoillaan dialogi numeroituna
+  // Muotoillaan dialogi — huomioidaan myös kuvaviestit (content voi olla array)
   let dialogue = '';
   let turn = 1;
   for (const msg of history) {
     const role = msg.role === 'assistant' ? 'BOTTI' : 'OPPIJA';
-    // Poistetaan [vasteaika: Xs] -etuliite näyttöä varten mutta SÄILYTETÄÄN analyysia varten
-    dialogue += `[${turn}] ${role}: ${msg.content}\n\n`;
+    let content = '';
+    if (Array.isArray(msg.content)) {
+      // Kuvaviesti: poimitaan tekstiosat, merkitään kuva
+      const textParts = msg.content.filter(p => p.type === 'text').map(p => p.text).join(' ');
+      const hasImg    = msg.content.some(p => p.type === 'image');
+      content = (hasImg ? '[KUVA TEHTÄVÄSTÄ] ' : '') + textParts;
+    } else {
+      content = msg.content;
+    }
+    dialogue += `[${turn}] ${role}: ${content}\n\n`;
     turn++;
   }
 
   const analyzePrompt =
-    `Olet pedagoginen analyytikko. Analysoi seuraava oppimissessio, jossa botti ohjaa oppijaa käyttämään Kakkukirjaa murtolukujen oppimiseen Sokraattisella dialogilla.\n\n` +
-    `TÄRKEÄ ESIKARSINTA:\n` +
-    `Viestit joissa on merkintä [viesti: asiaton] tai [viesti: asiaton — toistuvaa] ovat kiroilua tai tahallista trollausta.\n` +
-    `• ÄLÄ käsittele niitä pedagogisina signaaleina — jätä täysin huomiotta analyysissä\n` +
-    `• ÄLÄ ehdota niihin pohjautuvia parannuksia botin käyttäytymiseen\n` +
-    `• Jos KAIKKI "hämmennys" oli asiattomia viestejä, kirjoita: SESSIO SUJUI HYVIN — ei pedagogisia ongelmia.\n\n` +
-    `TEHTÄVÄSI (ainoastaan aidot hämmennyssignaalit):\n` +
-    `1. Tunnista kohdat, joissa oppija ilmaisi AITOA hämmennystä tai epävarmuutta:\n` +
-    `   - eksplisiittiset: "en ymmärrä", "mitä tarkoitat", "sano selvemmin", "miksi"\n` +
-    `   - implisiittiset: hyvin lyhyt/yksisanainen vastaus kysymykseen, "ok", "en tiedä", "hmm"\n` +
-    `   - pitkä vasteaika — merkitty [vasteaika: Xs] (yli 8s on merkki hämmennystä)\n` +
-    `   - oppija vastaa kysymykseen täysin väärin tai vastauksen aiheen ohi\n\n` +
-    `2. Jokaiselle löydetylle aidolle hetkelle: mitä BOTTI sanoi JUURI ENNEN hämmennystä?\n\n` +
-    `3. Anna konkreettinen parannusehdotus: miten botin olisi pitänyt ilmaista asia selkeämmin?\n\n` +
-    `MUOTO — käytä TÄSMÄLLEEN tätä rakennetta jokaiselle hetkelle:\n` +
+    `Olet pedagoginen analyytikko. Analysoi seuraava oppimissessio, jossa Läksykamu-botti ohjaa oppijaa matematiikassa Sokraattisella dialogilla.\n\n` +
+
+    `ESIKARSINTA — jätä nämä täysin huomiotta:\n` +
+    `• Viestit joissa on [viesti: asiaton] = kiroilu/trollaus, ei pedagoginen signaali\n\n` +
+
+    `ANALYSOI KAKSI ONGELMARYHMÄÄ:\n\n` +
+
+    `━━ RYHMÄ A: OPPIJAN HÄMMENNYS ━━\n` +
+    `Tunnista kohdat joissa oppija ilmaisi aitoa hämmennystä tai epävarmuutta:\n` +
+    `• Eksplisiittinen: "en ymmärrä", "mitä tarkoitat", "sano selvemmin", kysymys botin kysymykseen\n` +
+    `• Implisiittinen: yksisanainen vastaus monimerkitykselliseen kysymykseen, "ok", "hmm", "en tiedä"\n` +
+    `• Pitkä vasteaika [vasteaika: Xs] yli 8 sekuntia = todennäköinen hämmennys\n` +
+    `• Oppija vastaa täysin asian ohi tai toistaa saman väärän vastauksen uudelleen\n\n` +
+    `MUOTO jokaiselle A-hetkelle:\n` +
     `🔴 HÄMMENNYS [vuoro N]: "[oppijan kommentti]"\n` +
-    `   Botin edellinen viesti: "[botin lausuma tiivistettynä]"\n` +
-    `   ✏ Parannusehdotus: "[konkreettinen korjattu ilmaisu tai lähestymistapa]"\n\n` +
-    `Jos oppija ei kertaakaan ilmaissut AITOA hämmennystä, kirjoita AINOASTAAN: SESSIO SUJUI HYVIN — ei havaittavia ongelmia.\n\n` +
+    `   Botin edellinen viesti: "[tiivistettynä]"\n` +
+    `   ✏ Parannusehdotus: "[miten botin olisi pitänyt ilmaista asia]"\n\n` +
+
+    `━━ RYHMÄ B: TURHA TOISTAMINEN ━━\n` +
+    `Tunnista kohdat joissa dialogi jumiutui tai pyöri turhaan kehässä:\n` +
+    `• Botti kysyy saman kysymyksen uudelleen lähes samoin sanoin vaikka oppija jo vastasi\n` +
+    `• Botti toistaa saman selityksen tai ohjeen useaan kertaan peräkkäin\n` +
+    `• Oppija joutuu sanomaan saman asian useampaan kertaan ennen kuin botti etenee\n` +
+    `• Oppija antaa oikean vastauksen mutta botti ei tunnista sitä oikeaksi ja jatkaa kyselyä\n` +
+    `• Dialogi ei etene — sama aihe pyörii yli 4 vuoron ajan ilman edistystä\n\n` +
+    `MUOTO jokaiselle B-hetkelle:\n` +
+    `🔁 TOISTO [vuorot N–M]: "[mitä toistettiin]"\n` +
+    `   Syy: "[miksi botti ei edennyt]"\n` +
+    `   ✏ Parannusehdotus: "[miten botti olisi voinut tunnistaa tilanteen ja edetä]"\n\n` +
+
+    `Jos kumpaakin ongelmatyyppiä ei löydy yhtään, kirjoita AINOASTAAN: SESSIO SUJUI HYVIN — ei havaittavia ongelmia.\n\n` +
     `SESSIO:\n${dialogue}`;
 
   try {
@@ -941,7 +1109,7 @@ async function analyzeSession() {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 900,
+        max_tokens: 1200,
         messages: [{ role: 'user', content: analyzePrompt }]
       })
     });
@@ -949,12 +1117,16 @@ async function analyzeSession() {
     const data  = await res.json();
     const reply = data.content?.[0]?.text?.trim() || '';
 
+    // Tallennetaan päiväkirjaan aina — riippumatta siitä näytetäänkö paneeli
+    saveAnalysisToLog(dialogue, reply, history.length, conversationHistory);
+
     if (reply.includes('SESSIO SUJUI HYVIN')) {
-      resultsEl.textContent = '✅ ' + reply;
+      if (showPanel) resultsEl.textContent = '✅ ' + reply;
+      showToast('✅ Sessio analysoitu — ei ongelmia');
       return;
     }
 
-    // Kerätään ✏ Parannusehdotus -rivit → lisätään automaattisesti botin ohjaukseen
+    // Kerätään kaikki ✏ Parannusehdotus -rivit (sekä A- että B-ryhmästä)
     const suggestions = reply
       .split('\n')
       .filter(l => l.trim().startsWith('✏'))
@@ -964,7 +1136,6 @@ async function analyzeSession() {
     let output = reply;
 
     if (suggestions.length > 0) {
-      // Tallennetaan pedagogiset huomiot extraFixes-muodossa
       const fixLines = suggestions.map(s => `✏ Pedagoginen huomio: ${s}`);
       const combined = [...new Set([...extraFixes, ...fixLines])];
       extraFixes = combined;
@@ -972,11 +1143,14 @@ async function analyzeSession() {
       output += `\n\n─────────────────────────────\n✅ ${suggestions.length} parannusehdotusta lisätty botin ohjaukseen automaattisesti.`;
     }
 
-    resultsEl.textContent = output;
+    if (showPanel) {
+      resultsEl.textContent = output;
+    } else {
+      showToast(`📊 Sessio analysoitu — ${suggestions.length} parannusehdotusta tallennettu`, 4000);
+    }
 
   } catch (e) {
-    resultsEl.className = 'error';
-    resultsEl.textContent = '❌ Virhe: ' + e.message;
+    if (showPanel) { resultsEl.className = 'error'; resultsEl.textContent = '❌ Virhe: ' + e.message; }
   }
 }
 
@@ -1468,6 +1642,7 @@ window.addEventListener('load', () => {
   if (apiKey)    document.getElementById('api-key-input').value    = apiKey;
   if (openaiKey) document.getElementById('openai-key-input').value = openaiKey;
   updateLogCount();
+  updateAnalysesCount();
   showWelcome();
 });
 
@@ -1657,8 +1832,12 @@ async function callClaude(userMessage, responseTimeSec = null, imageData = null)
     claudeMsg = `[vasteaika: ${responseTimeSec}s] ${claudeMsg}`;
   }
 
-  // 2) Asiasisältösuodatin — kiroilu/trollaus → merkitään Claudelle
-  if (detectInappropriate(userMessage)) {
+  // 2a) Haamufraasin tunnistus — sama fraasi toistuu → tunnistusvirhe, ei trollaus
+  if (detectGhostPhrase(userMessage)) {
+    claudeMsg = `[tunnistushäiriö: sama lause on toistunut useasti — kysy rauhallisesti onko puheentunnistuksessa ongelma, älä jatka tehtävää ennen kuin asia on selvä] ${claudeMsg}`;
+    recentInappropriateCount = 0;
+  // 2b) Asiasisältösuodatin — kiroilu/trollaus → merkitään Claudelle
+  } else if (detectInappropriate(userMessage)) {
     recentInappropriateCount++;
     const repeatNote = recentInappropriateCount >= 3
       ? ` [toistuvaa — ${recentInappropriateCount}. kerta peräkkäin]`
@@ -1667,6 +1846,9 @@ async function callClaude(userMessage, responseTimeSec = null, imageData = null)
   } else {
     recentInappropriateCount = 0;
   }
+
+  // 3) Seurataan viestejä haamufraasia varten (tehdään SUODATUKSEN jälkeen)
+  trackUserMsg(userMessage);
 
   // 3) Rakennetaan message content — kuva + teksti tai pelkkä teksti
   let messageContent;
@@ -1749,6 +1931,24 @@ async function sendMessage(responseTimeSec = null) {
   botSpeaking = false;
   stopVoiceInput();
   addUserMessage(text, imageSnap);
+
+  // ── Hyvästelytunnistus — lopeta sessio siististi ──
+  if (!imageSnap && detectGoodbye(text)) {
+    const goodbye = GOODBYE_RESPONSES[Math.floor(Math.random() * GOODBYE_RESPONSES.length)];
+    addBotMessage(goodbye);
+    // Puhu hyvästely jos ääni päällä
+    if (openaiKey) {
+      speakOpenAI(goodbye).catch(() => {
+        window.speechSynthesis && window.speechSynthesis.speak(
+          Object.assign(new SpeechSynthesisUtterance(goodbye), { lang: 'fi-FI', rate: 0.92 })
+        );
+      });
+    }
+    // Käynnistä sessioanalyysi + nollaus 3,5 s viiveellä (äänelle aikaa soida)
+    setTimeout(() => newConversation(), 3500);
+    return;
+  }
+
   waiting = true;
   document.getElementById('send-btn').disabled = true;
   addTypingIndicator();
@@ -1856,15 +2056,22 @@ function useExample(btn) {
   sendMessage();
 }
 
-function newConversation() {
+async function newConversation() {
+  // Autoanalyysi ennen nollausta jos sessio on tarpeeksi pitkä
+  const turns = conversationHistory.filter(m => m.role === 'user' || m.role === 'assistant').length;
+  if (apiKey && turns >= 4) {
+    showToast('⏳ Analysoidaan sessiota…', 8000);
+    await analyzeSession(false);  // hiljaa taustalla, ei näytä paneelia
+  }
+
   conversationHistory = [];
   recentInappropriateCount = 0;
+  recentUserMsgs = [];
   clearPendingImage();
   window.speechSynthesis && window.speechSynthesis.cancel();
   botSpeaking = false;
   document.getElementById('chat').innerHTML = '';
   document.getElementById('voice-circles').innerHTML = '';
-  // Resetoi sessioanalyysi-näkymä
   const sr = document.getElementById('session-results');
   if (sr) { sr.style.display = 'none'; sr.textContent = ''; }
   if (!voiceEnabled) {
