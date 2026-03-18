@@ -151,6 +151,19 @@
       font-size: 0.68rem; font-weight: 800; letter-spacing: 0.04em;
       border-radius: 8px; padding: 2px 8px;
     }
+
+    /* ── Oikea matemaattinen murtolukumerkintä ── */
+    .math-frac {
+      display: inline-flex; flex-direction: column; align-items: center;
+      vertical-align: middle; line-height: 1.15; margin: 0 2px;
+    }
+    .frac-top {
+      border-bottom: 1.5px solid currentColor;
+      padding: 0 4px 1px; text-align: center; min-width: 1.1em;
+    }
+    .frac-bot {
+      padding: 1px 4px 0; text-align: center; min-width: 1.1em;
+    }
     .dots-row { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
     .dot-item { display: flex; align-items: center; gap: 3px; font-size: 0.72rem; }
     .color-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
@@ -426,6 +439,35 @@
     </div>
   </div>
 
+  <!-- ── ElevenLabs ── -->
+  <div style="margin-top:12px">
+    <label>ElevenLabs API-avain <span style="font-weight:400;color:var(--text-sub)">(valinnainen — luonnollisempi suomi)</span></label>
+    <p>Hanki osoitteesta <strong>elevenlabs.io</strong>. Mahdollistaa suomenkieliset AI-äänet ja oman äänen kloonauksen.</p>
+    <div class="api-row">
+      <input type="password" class="api-input" id="elevenlabs-key-input" placeholder="sk_..." />
+      <button class="save-btn" onclick="saveElevenLabsKey()">Tallenna</button>
+    </div>
+    <div style="margin-top:8px">
+      <label style="font-size:0.82rem;font-weight:600">Ääni-ID</label>
+      <p>Etsi suomenkielinen ääni osoitteesta <strong>elevenlabs.io/voice-library</strong> ja liitä sen ID tähän.</p>
+      <div class="api-row">
+        <input type="text" class="api-input" id="elevenlabs-voice-input" placeholder="esim. ErXwobaYiN019PkySvjV..." style="font-family:monospace;font-size:0.8rem" />
+        <button class="save-btn" onclick="saveElevenLabsVoice()">Tallenna</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Puheäänen valinta ── -->
+  <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:12px">
+    <label>Puheääni</label>
+    <div class="api-row" style="flex-wrap:wrap;gap:6px;margin-top:6px">
+      <button class="save-btn" id="tts-openai-btn" onclick="setTtsProvider('openai')">🎙 OpenAI nova</button>
+      <button class="save-btn" id="tts-elevenlabs-btn" onclick="setTtsProvider('elevenlabs')">🎙 ElevenLabs</button>
+      <button class="save-btn" style="background:#388E3C" onclick="testTtsVoice()">🔊 Testaa ääni</button>
+    </div>
+    <p id="tts-status" style="font-size:0.75rem;color:var(--text-sub);margin-top:6px"></p>
+  </div>
+
   <!-- ── Puheloki ja kielentarkastus ── -->
   <div style="margin-top:16px; border-top:1px solid var(--border); padding-top:14px;">
     <label>Puheloki <span id="log-count" style="font-weight:400;color:var(--text-sub)">(0 lausetta)</span></label>
@@ -682,6 +724,13 @@ LISÄTYT OPERAATIOTYYPIT:
    Botti EI laske ääneen ilman, että on ensin toistanut oppijalta kuullut luvut.
    Jos teet laskuvirheen, se sekoittaa oppijaa pahemmin kuin kysyminen. On aina parempi kysyä.
 
+   LASKUKIELTO — absoluuttinen:
+   Botti EI KOSKAAN laske yhtään laskutoimitusta oppijan puolesta — ei yhteen-, vähennys-, kerto- eikä jakolaskua.
+   Jos tarvitaan lasku (esim. "5 × 3" kalvon kierrosten laskemiseksi), kysy aina ensin: "Paljonko on 5 kertaa 3?"
+   Oppija laskee — botti vahvistaa. Ei toisinpäin.
+   ✗ "Joten 5/7 on 15/21." (botti laski 5 × 3 itse)
+   ✓ "Kalvo peitti kolme viipaletta joka kierroksella. Paljonko on viisi kertaa kolme?"
+
 8. VERTAILU (esim. "kumpi on suurempi 4/7 vai 2/3"):
    Sokraattiset askeleet — yksi kerrallaan, ÄLÄ hyppää yli:
 
@@ -753,6 +802,13 @@ TÄRKEÄÄ — ÄLÄ näytä apukuvia turhaan:
 • Apukuva on välivaihe — sen avulla oppija saa riittävän ymmärryksen löytääkseen vastaavan sivun omasta kirjastaan
 • Apukuva on onnistunut silloin kun se johtaa oppijan takaisin omaan kirjaan
 
+PASSIIVINEN TOISTAMINEN — "koska käskit" / "koska sanoit":
+Jos oppija vastaa oikein mutta perustelee "koska käskit", "koska sanoit niin", "koska pyydit" tai vastaavalla:
+• ÄLÄ hyväksy vastausta sellaisenaan ja etene eteenpäin
+• Kysy ystävällisesti oman päättelyn perustelu: "Hienosti! Mutta kerrotaas — miksi se on juuri 3/6? Mitä ylempi luku tarkoittaa?"
+• Tavoite: oppija sanoo sen itse omin sanoin, ei pelkästään toistaen ohjeita
+• Jos sama passiivisuus jatkuu useammassa vuorossa, anna yksi yksinkertainen "miksi"-kysymys ja odota
+
 TUNNISTUSHÄIRIÖ — merkki [tunnistushäiriö:] tarkoittaa puheentunnistuksen virhettä:
 • Kysy rauhallisesti: "Kuulinko oikein? Sanoit [X] — tarkoititko jotain muuta?"
 • ÄLÄ jatka tehtävää ennen kuin asia on selvä
@@ -772,6 +828,7 @@ KIELLETYT SANAT JA FRAASIT — älä koskaan käytä:
 • "erinomainen kysymys", "hyvä kysymys" — kuulostaa teennäiseltä
 • "ymmärrän", "tietenkin" — robottimaiset täytesanat
 • Aloitukset kuten "Selvä!", "Hienoa!", ennen kuin oppija on tehnyt jotain
+• "Ollaan hyvässä langassa" — epäluontevan kuuloinen, ei tarkoita lapselle mitään; käytä sen sijaan "Hyvää työtä!" tai "Mennään eteenpäin!"
 
 SUOMEN KIELI — kirjoita natiivina suomenkielisenä, ei käännettynä englannista:
 
@@ -801,6 +858,80 @@ MUOTO:
 
 Jos tehtävä ei liity murtolukuihin: "Tämä työkalu on juuri nyt suunnattu murtolukuihin. Kokeile esim: '3/4 luvusta 60'!"
 
+═══ MURTOLUKUJEN PEDAGOGINEN JÄRJESTYS ═══
+
+Kun oppija kohtaa murtoluvun ensimmäistä kertaa tai on epävarma, etene AINA tässä järjestyksessä:
+
+VAIHE 1 — NIMITTÄJÄ: Sivujen "nimet"
+• Pyydä oppijaa avaamaan sivu, jossa kakku on jaettu tiettyyn määrään osia.
+  Esim: "Avaa sellainen sivu, jossa kakku on jaettu kahdeksaan yhtä suureen osaan."
+• Harjoittele useilla sivuilla — kuudesosa, yhdeksäsosa, kymmenesosat jne.
+• Tavoite: oppija ymmärtää, että sivun numero = osien määrä = "nimi" sille jaottelulle.
+• ÄLÄ vielä puhu osoittajasta tai symboleista.
+
+VAIHE 2 — OSOITTAJA: Sormella valitaan
+• Kun nimittäjä on selvä, pyydä oppijaa osoittamaan sormella osia.
+  Esim: "Osoita yhtä palaa sivulla 6" → "Osoita nyt kolmea palaa."
+• Tässä oppija valitsee osan kokonaisesta — se on osoittaja.
+• ÄLÄ vielä näytä symbolikirjausta.
+
+VAIHE 3 — SYMBOLIKIRJAUS: Vasta toiminnan jälkeen
+• Vasta kun oppija on osoittanut oikein, näytä symboli.
+  Esim: "Osoitit kolme palaa kuudesta — se on **3/6** matemaattisesti."
+• Sido symboli kokemukseen: "Ylempi luku — osoittaja — on se, mitä sormellasi osoitit hetki sitten."
+  "Alempi luku — nimittäjä — on se sivu, jolla olitte — kuinka moneen osaan kakku oli jaettu."
+• Tämä järjestys on kriittinen: toiminta → kokemus → symboli. EI toisinpäin.
+
+POIKKEUS — oppija kysyy symbolista, kun sivu on JO löydetty:
+Jos oppija on jo avannut oikean sivun JA kysyy eksplisiittisesti symbolista tai merkintätavasta
+(esim. "miten tämä merkitään?", "miten se kirjoitetaan matemaattisesti?", "mikä on sen symboli?"),
+ÄLÄ vaadi lisää fyysistä toimintaa — anna symboli HETI.
+✗ "Ensin osoita sormellasi yksi pala!" (oppija on JO sivulla ja kysy merkintää)
+✓ "Hyvä huomio! Sivu 3 = kolme yhtä suurta osaa. Yksi niistä merkitään **1/3** — ylempi luku on osoitetut palat, alempi osien kokonaismäärä."
+
+═══ KIELEN TARKKUUS ═══
+
+Ruokaesimerkeissä käytä oikeita suomalaisia sanoja:
+• Kakku jaetaan **paloiksi** — ei siivuiksi. ✓ "yksi pala kolmesta" ✗ "yksi siivu kolmesta"
+• Pitsa jaetaan **paloiksi** tai **slaisseiksi** — ei siivuiksi. ✓ "pizzapala" ✗ "pizzasiivu"
+• Kinkku tai juusto voidaan sen sijaan leikata **siivuiksi** — mutta niitä ei käytetä murtolukuesimerkeissä.
+
+Vältä epäluontevia aikaviittauksia:
+✗ "Otan aikaa" → ✓ "Odotellaan rauhassa" / "Kaikki hyvin — kerro kun olet valmis"
+✗ "Sinulla on aikaa" → ✓ "Ei kiire ollenkaan"
+
+═══ SIVULLE SIIRTYMINEN — SELITÄ AINA MIKSI ═══
+
+Kun pyydät oppijaa avaamaan uuden sivun, kerro ensin lyhyesti MIKSI.
+✗ "Avaa sivu 4." (ilman selitystä)
+✓ "Halusin näyttää miltä yksi neljäsosa näyttää — avaa sivu 4."
+✓ "Verrataan sitä sivuun 60 — avaa ensin sivu 4, niin ymmärrät yhteyden."
+Tämä estää oppijaa hämmentymästä siitä, miksi hypätään sivulta toiselle.
+
+═══ APUKUVIEN VÄRITYS — MITÄ EI LUVATA ═══
+
+Apukuvat värittyvät AUTOMAATTISESTI vain kun mainitset "sivu N" tai "kalvo N sivulle M" tekstissä.
+• ÄLÄ koskaan lupaa värittää apukuvaa oppijan pyynnöstä — se ei onnistu.
+• Jos oppija pyytää väritystä: "Valitettavasti en pysty värittämään apukuvaa manuaalisesti — se tapahtuu vain automaattisesti kun puhumme tietystä sivusta."
+
+═══ APUKUVAN AJOITUS — KRIITTINEN ═══
+
+Apukuva ja väritetty sivukortti ilmestyvät VÄLITTÖMÄSTI kun mainitset sekä "kalvo N" että "sivu M" numeroina samassa lauseessa. Tämä voi paljastaa vastauksen oppijalle ennen kuin hän on itse kokeillut — erittäin haitallista.
+
+TEHTÄVÄNANNOSSA — käytä sanallista kuvausta, ÄLÄ numeroita:
+✗ "Aseta kalvo 3 sivulle 6 ja kerro montako viipaletta se peittää."  ← kortti ilmestyy, vastaus paljastuu!
+✓ "Aseta keltainen kolmasosakalvo kutossivulle ja kerro mitä näet."  ← ei triggeröi, oppija tekee itse
+
+VAHVISTUKSESSA — numerot ovat OK:
+Vasta kun oppija on raportoinut, voit sanoa: "Juuri niin — kalvo 3 peitti sivulla 6 kaksi viipaletta."
+Nyt kortti saa ilmestyä, koska oppija on jo suorittanut tehtävän.
+
+KÄYTÄNNÖSSÄ — sanallinen kuvaus kalvoille ja sivuille:
+• Kalvojen värit (käytä sen sijaan): 2=pinkki, 3=keltainen, 4=sininen, 5=oranssi, 6=violetti, 7=vihreä, 8=ruskea, 9=magenta
+  Esim: "keltainen kolmasosakalvo" / "vihreä seitsemäsosakalvo" / "sininen neljäsosakalvo"
+• Sivun kuvaus tehtävässä: "kutossivulle" / "yhdeksän sivulle" / "sivulle yhdeksän"
+  ÄLÄ kirjoita "sivu 9" tehtävänantolauseessa — se triggeröi sivukortin!
+
 ASIATTOMAT VIESTIT JA TROLLAUS:
 Merkki [viesti: asiaton] tarkoittaa, että oppijan viesti sisälsi kiroilua, häiriköintiä tai trollausta.
 • ÄLÄ koskaan toista, kommentoi tai vahvista asiattomia sanoja — jätä ne täysin huomiotta
@@ -814,8 +945,11 @@ Merkki [viesti: asiaton] tarkoittaa, että oppijan viesti sisälsi kiroilua, hä
 // ═══════════════════════════════════════════════════════════
 
 let conversationHistory = [];
-let apiKey    = localStorage.getItem('kk_api_key')    || '';
-let openaiKey = localStorage.getItem('kk_openai_key') || '';
+let apiKey           = localStorage.getItem('kk_api_key')            || '';
+let openaiKey        = localStorage.getItem('kk_openai_key')         || '';
+let elevenLabsKey    = localStorage.getItem('kk_elevenlabs_key')     || '';
+let elevenLabsVoiceId= localStorage.getItem('kk_elevenlabs_voice_id')|| '';
+let ttsProvider      = localStorage.getItem('kk_tts_provider')       || 'openai';
 let waiting   = false;
 
 // ── Puheloki ja kielentarkastus ──
@@ -948,10 +1082,21 @@ function detectGoodbye(text) {
 
 // ── Haamufraasin tunnistus ──
 // Seuraa viimeisiä viestejä — sama fraasi ≥2× lyhyen ajan sisällä = tunnistusvirhe
+// TUNNETUT haamufraasit laukeavat jo ensimmäisellä kerralla (puheentunnistuksen vakiovirheet)
+const KNOWN_GHOST_PATTERNS = [
+  /kiitos\s+kun\s+katsoit/i,         // "Kiitos kun katsoit videon!" — yleisin virhe
+  /kiitos[,\s]+(?:että|kun)\s+katsoit/i, // "Kiitos, että katsoitte." — pilkku käsitellään
+  /tilaa\s+uutiskirje/i,
+  /teksti(?:t|ttää)?\s+ja\s+kuvi/i,  // "Tekstit ja kuvitti Jarkko Lehtola Yle" — credits-teksti
+];
+
 let recentUserMsgs = [];  // normalisoidut viestit, max 10
 
 function detectGhostPhrase(text) {
   const normalized = text.trim().toLowerCase().replace(/\s+/g, ' ');
+  // Tunnettu haamufraasi → laukea heti, ei tarvita toistoa
+  if (KNOWN_GHOST_PATTERNS.some(p => p.test(normalized))) return true;
+  // Tuntematon toistuva fraasi → vaaditaan ≥2 toistoa
   const count = recentUserMsgs.filter(m => m === normalized).length;
   return count >= 2 && normalized.length > 4;
 }
@@ -1289,11 +1434,12 @@ let audioCtx      = null;
 let analyser      = null;
 let vadTimer      = null;
 
-const SPEECH_THRESHOLD    = 6;    // aikadomeeni-RMS (0–128), puhe alkaa
-const SILENCE_MS_SPEAKER  = 1500; // ms hiljaisuutta — kaiutinmoodi
-const SILENCE_MS_HP       = 700;  // ms hiljaisuutta — kuulokemoodi, nopea vastaus
-const SILENCE_MS_HP_Q     = 1400; // ms hiljaisuutta — kuulokemoodi, botti kysyi kysymyksen (oppija miettii)
-const MAX_REC_MS          = 12000; // turvaverkko: max nauhoitusaika (pidempi = enemmän aikaa miettiä)
+const SPEECH_THRESHOLD    = 8;     // aikadomeeni-RMS (0–128), puhe alkaa
+const MIN_SPEECH_MS       = 300;   // Whisperille lähetetään vain jos puhetta ≥300ms yhteensä (kumulatiivinen, ei peräkkäistä)
+const SILENCE_MS_SPEAKER  = 3500;  // ms hiljaisuutta ennen lähetystä — kaiutinmoodi (nostettu: ääneen laskeminen tauottaa)
+const SILENCE_MS_HP       = 2500;  // ms hiljaisuutta — kuulokemoodi
+const SILENCE_MS_HP_Q     = 4500;  // ms hiljaisuutta — botti kysyi kysymyksen, oppija miettii
+const MAX_REC_MS          = 60000; // turvaverkko: abs. max (60s) — VAD hoitaa normaalin lopetuksen
 
 async function initMicrophone() {
   if (mediaStream) return true;
@@ -1339,27 +1485,39 @@ function startVoiceInput() {
   isRecording = true;
   setMicUI('recording');
 
-  // VAD: jos botti juuri kysyi kysymyksen, annetaan enemmän miettimisaikaa
+  // VAD: hiljaisuuskynnys — botti odottaa kunnes oppija oikeasti hiljenee
   const lastMsg = conversationHistory.length > 0
     ? conversationHistory[conversationHistory.length - 1] : null;
   const botJustAsked = lastMsg?.role === 'assistant' && lastMsg?.content?.trimEnd().endsWith('?');
   const silenceMs = headphonesMode
     ? (botJustAsked ? SILENCE_MS_HP_Q : SILENCE_MS_HP)
     : SILENCE_MS_SPEAKER;
-  let speechHeard = false, lastSpeech = Date.now();
+
+  let speechHeard    = false;
+  let lastSpeech     = Date.now();
+  let totalSpeechMs  = 0;  // kumulatiivinen puheaika — kasvaa aina kun puhe ylittää kynnyksen
+
   vadTimer = setInterval(() => {
     if (!isRecording) { clearInterval(vadTimer); return; }
     const level = getSpeechLevel();
     if (level > SPEECH_THRESHOLD) {
-      speechHeard = true;
+      totalSpeechMs += 80;
+      // Kumulatiivinen laskuri: ei vaadi peräkkäistä puhetta, vain tarpeeksi yhteensä
+      // → suodattaa yksittäiset kohinapiikkit mutta reagoi normaaliin puheeseen nopeasti
+      if (totalSpeechMs >= MIN_SPEECH_MS) speechHeard = true;
       lastSpeech = Date.now();
       setMicUI('recording-active');
-    } else if (speechHeard && Date.now() - lastSpeech > silenceMs) {
-      stopVoiceInput(); // riittävästi hiljaisuutta → lähetä
+    } else if (speechHeard) {
+      // Pidempi lausuma → annetaan enemmän aikaa tauolle (max +50%)
+      const bonus     = Math.min(totalSpeechMs * 0.15, silenceMs);
+      const threshold = silenceMs + bonus;
+      if (Date.now() - lastSpeech > threshold) {
+        stopVoiceInput(); // oppija on oikeasti hiljentynyt → lähetä
+      }
     }
   }, 80);
 
-  // Turvaverkko: max aika
+  // Turvaverkko: katkaisee vain jos VAD ei toimi (60s)
   setTimeout(() => { if (isRecording) stopVoiceInput(); }, MAX_REC_MS);
 }
 
@@ -1703,7 +1861,31 @@ function stopAudioContext() {
   }
 }
 
-// Pääfunktio: OpenAI nova ensisijaisesti (luonnollisin), selainääni varavaihtoehtona
+// ── ElevenLabs TTS ──
+async function speakElevenLabs(clean) {
+  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${elevenLabsVoiceId}`, {
+    method: 'POST',
+    headers: {
+      'xi-api-key': elevenLabsKey,
+      'Content-Type': 'application/json',
+      'Accept': 'audio/mpeg'
+    },
+    body: JSON.stringify({
+      text: clean,
+      model_id: 'eleven_multilingual_v2',
+      voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.3, use_speaker_boost: true }
+    })
+  });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(`ElevenLabs TTS ${res.status}: ${errText.slice(0, 120)}`);
+  }
+  const arrayBuffer = await res.arrayBuffer();
+  await playWithAudioContext(arrayBuffer);
+  afterSpeech();
+}
+
+// Pääfunktio — reititys: ElevenLabs → OpenAI → selainääni
 async function speak(text) {
   if (!voiceEnabled) return;
   const clean = cleanForSpeech(text);
@@ -1714,6 +1896,17 @@ async function speak(text) {
   setMicUI('speaking');
   updateStopBtn();
 
+  // ElevenLabs — jos valittu ja avain + voice ID asetettu
+  if (ttsProvider === 'elevenlabs' && elevenLabsKey && elevenLabsVoiceId) {
+    try {
+      await speakElevenLabs(clean);
+      return;
+    } catch (err) {
+      console.warn('ElevenLabs TTS -virhe, vaihdetaan OpenAI:hin:', err);
+    }
+  }
+
+  // OpenAI nova — fallback tai valittu
   if (!openaiKey) {
     speakWithBrowser(clean, getBestFinnishVoice());
     return;
@@ -1722,26 +1915,13 @@ async function speak(text) {
   try {
     const res = await fetch('https://api.openai.com/v1/audio/speech', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'tts-1',
-        input: clean,
-        voice: 'nova',
-        speed: 0.92
-      })
+      headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'tts-1', input: clean, voice: 'nova', speed: 0.92 })
     });
-
     if (!res.ok) throw new Error(`OpenAI TTS ${res.status}`);
-
     const arrayBuffer = await res.arrayBuffer();
-
-    // Käytä AudioContext — toimii iOS:ssä myös silent-kytkimellä ja async-kontekstissa
     await playWithAudioContext(arrayBuffer);
     afterSpeech();
-
   } catch (err) {
     console.warn('OpenAI TTS -virhe, käytetään selaimen ääntä:', err);
     speakWithBrowser(clean);
@@ -1753,10 +1933,13 @@ async function speak(text) {
 // ═══════════════════════════════════════════════════════════
 
 window.addEventListener('load', () => {
-  if (apiKey)    document.getElementById('api-key-input').value    = apiKey;
-  if (openaiKey) document.getElementById('openai-key-input').value = openaiKey;
+  if (apiKey)           document.getElementById('api-key-input').value         = apiKey;
+  if (openaiKey)        document.getElementById('openai-key-input').value       = openaiKey;
+  if (elevenLabsKey)    document.getElementById('elevenlabs-key-input').value   = elevenLabsKey;
+  if (elevenLabsVoiceId)document.getElementById('elevenlabs-voice-input').value = elevenLabsVoiceId;
   updateLogCount();
   updateAnalysesCount();
+  updateTtsStatus();
   showWelcome();
 });
 
@@ -1821,6 +2004,24 @@ function drawCircle(n, size = 180, highlightCount = 0, highlightColor = null) {
                xmlns="http://www.w3.org/2000/svg">${paths}</svg>`;
 }
 
+// Tunnistaa botin tekstistä murtolukukirjauksia: **2/3**, 3/6, jne.
+// Palauttaa [{osoittaja, nimittäjä}] — käytetään värittämään osoittajan verran sektoreita
+function extractFractionMentions(text) {
+  const results = [];
+  // Tunnistaa X/Y missä X ≤ Y ≤ 100, X > 0 — joko lihavoituna tai sellaisenaan
+  const pattern = /\*{0,2}(\d{1,2})\/(\d{1,3})\*{0,2}/g;
+  let m;
+  while ((m = pattern.exec(text)) !== null) {
+    const osoittaja = parseInt(m[1]);
+    const nimittaja = parseInt(m[2]);
+    if (osoittaja > 0 && nimittaja > 0 && nimittaja <= 100 && osoittaja <= nimittaja) {
+      if (!results.some(r => r.osoittaja === osoittaja && r.nimittaja === nimittaja))
+        results.push({ osoittaja, nimittaja });
+    }
+  }
+  return results;
+}
+
 // Tunnistaa botin tekstistä "kalvo X sivulla/sivulle Y" ja "sivu X + kalvo Y" -yhdistelmät
 function extractKalvoMentions(text) {
   const results = [];
@@ -1869,8 +2070,15 @@ function drawDots(n) {
 // VIESTIN MUOTOILU JA SIVUNUMEROIDEN TUNNISTUS
 // ═══════════════════════════════════════════════════════════
 
+function mathFrac(n, d) {
+  return `<span class="math-frac"><span class="frac-top">${n}</span><span class="frac-bot">${d}</span></span>`;
+}
+
 function formatText(text) {
   return text
+    // Lihavoitu murtoluku **3/8** → oikea vaakaviivamerkintä + lihavointi
+    .replace(/\*\*(\d{1,2})\/(\d{1,3})\*\*/g, (_, n, d) => `<strong>${mathFrac(n, d)}</strong>`)
+    // Muu lihavointi
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\n/g, '<br>');
 }
@@ -1892,11 +2100,14 @@ function extractPageNumbers(text) {
 // ═══════════════════════════════════════════════════════════
 
 function addBotMessage(text, showCircles = true) {
-  const pages         = showCircles ? extractPageNumbers(text) : [];
-  const kalvoMentions = showCircles ? extractKalvoMentions(text) : [];
+  const pages            = showCircles ? extractPageNumbers(text) : [];
+  const kalvoMentions    = showCircles ? extractKalvoMentions(text) : [];
+  const fractionMentions = showCircles ? extractFractionMentions(text) : [];
 
-  // Sivut jotka näytetään kalvo-kombinaatiokorttina (ei toisteta pelkkänä sivuna)
-  const kalvoSivuSet = new Set(kalvoMentions.map(k => k.sivu));
+  // Sivut jotka näytetään yhdistelmäkorttina (kalvo tai murtoluku) — ei toisteta pelkkänä sivuna
+  const kalvoSivuSet    = new Set(kalvoMentions.map(k => k.sivu));
+  const fractionSivuSet = new Set(fractionMentions.map(f => f.nimittaja));
+  const shownSivuSet    = new Set([...kalvoSivuSet, ...fractionSivuSet]);
 
   // Kalvo+sivu -kortit ensin
   const kalvoCards = kalvoMentions.map(({ kalvo, sivu }) => {
@@ -1913,9 +2124,32 @@ function addBotMessage(text, showCircles = true) {
     </div>`;
   });
 
-  // Pelkät sivukortit (ilman kalvoa = ei väriä)
+  // Murtolukukortit: X/Y → sivu Y, X sektoria väritetty sivun omassa värissä
+  const fractionCards = fractionMentions
+    .filter(({ nimittaja }) => !kalvoSivuSet.has(nimittaja))
+    .map(({ osoittaja, nimittaja }) => {
+      // Sivun oma väri: nimittäjä ≤ 10 → suoraan, muuten suurin tekijä ≤ 10
+      const colorKey = nimittaja <= 10
+        ? nimittaja
+        : (getDivisors(nimittaja).filter(d => d > 1 && d <= 10).pop() || 1);
+      const pageColor = COLORS[colorKey] || '#2176E8';
+      const circle    = drawCircle(nimittaja, 180, osoittaja, pageColor);
+      const badge     = `<span class="kalvo-badge"
+        style="background:${pageColor}22;color:${pageColor};border:1.5px solid ${pageColor}88;font-size:0.9rem;">
+        ${mathFrac(osoittaja, nimittaja)}
+      </span>`;
+      return `
+      <div class="page-card">
+        <span class="pg-label">Sivu ${nimittaja}</span>
+        ${circle}
+        ${badge}
+        <div class="dots-row">${drawDots(nimittaja)}</div>
+      </div>`;
+    });
+
+  // Pelkät sivukortit (ilman kalvoa tai murtolukua = ei väriä)
   const plainCards = pages
-    .filter(p => !kalvoSivuSet.has(p))
+    .filter(p => !shownSivuSet.has(p))
     .map(p => `
     <div class="page-card">
       <span class="pg-label">Sivu ${p}</span>
@@ -1923,7 +2157,7 @@ function addBotMessage(text, showCircles = true) {
       <div class="dots-row">${drawDots(p)}</div>
     </div>`);
 
-  const cardsHtml = [...kalvoCards, ...plainCards].join('');
+  const cardsHtml = [...kalvoCards, ...fractionCards, ...plainCards].join('');
 
   if (voiceEnabled) {
     // PUHETILA: ei tekstikuplaa — vain piirikuvat isona
@@ -2221,8 +2455,101 @@ function saveOpenAiKey() {
   if (val) {
     openaiKey = val;
     localStorage.setItem('kk_openai_key', val);
+    updateTtsStatus();
     document.getElementById('settings').classList.remove('open');
-    addBotMessage('✅ OpenAI-avain tallennettu! Puhetila käyttää nyt luonnollista ääntä. 🎙', false);
+    addBotMessage('✅ OpenAI-avain tallennettu!', false);
+  }
+}
+
+function saveElevenLabsKey() {
+  const val = document.getElementById('elevenlabs-key-input').value.trim();
+  if (val) {
+    elevenLabsKey = val;
+    localStorage.setItem('kk_elevenlabs_key', val);
+    updateTtsStatus();
+    addBotMessage('✅ ElevenLabs-avain tallennettu! Aseta vielä Ääni-ID.', false);
+  }
+}
+
+function saveElevenLabsVoice() {
+  const val = document.getElementById('elevenlabs-voice-input').value.trim();
+  if (val) {
+    elevenLabsVoiceId = val;
+    localStorage.setItem('kk_elevenlabs_voice_id', val);
+    // Vaihda automaattisesti ElevenLabsiin kun ID on asetettu
+    if (elevenLabsKey) setTtsProvider('elevenlabs');
+    else updateTtsStatus();
+    addBotMessage('✅ ElevenLabs Ääni-ID tallennettu!', false);
+  }
+}
+
+function setTtsProvider(provider) {
+  ttsProvider = provider;
+  localStorage.setItem('kk_tts_provider', provider);
+  updateTtsStatus();
+}
+
+function updateTtsStatus() {
+  const statusEl = document.getElementById('tts-status');
+  const elBtn    = document.getElementById('tts-elevenlabs-btn');
+  const oaBtn    = document.getElementById('tts-openai-btn');
+  if (!statusEl) return;
+
+  const elReady = elevenLabsKey && elevenLabsVoiceId;
+  const oaReady = !!openaiKey;
+
+  if (elBtn) elBtn.style.opacity = elReady ? '1' : '0.45';
+  if (oaBtn) oaBtn.style.opacity = oaReady ? '1' : '0.45';
+
+  const activeStyle = 'outline:2px solid #fff;outline-offset:1px';
+  if (elBtn) elBtn.style.outline = ttsProvider === 'elevenlabs' ? '2px solid #fff' : '';
+  if (oaBtn) oaBtn.style.outline = ttsProvider === 'openai'     ? '2px solid #fff' : '';
+
+  if (ttsProvider === 'elevenlabs' && elReady)
+    statusEl.textContent = '🎙 Aktiivinen: ElevenLabs';
+  else if (ttsProvider === 'elevenlabs' && !elReady)
+    statusEl.textContent = '⚠ ElevenLabs valittu mutta avain tai Ääni-ID puuttuu — käytetään OpenAI:ta';
+  else if (oaReady)
+    statusEl.textContent = '🎙 Aktiivinen: OpenAI nova';
+  else
+    statusEl.textContent = '⚠ Ei TTS-avainta — käytetään selaimen ääntä';
+}
+
+async function testTtsVoice() {
+  const testText = 'Moi! Olen Läksykamu. Kuulostaako tämä hyvältä?';
+  const clean = cleanForSpeech(testText);
+  botSpeaking = true;
+  updateStopBtn();
+
+  // Varmista AudioContext ennen testiä (tarvitaan käyttäjäeleen yhteydessä)
+  try {
+    if (!audioCtx || audioCtx.state === 'closed') audioCtx = new AudioContext();
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+  } catch (e) { /* ei kriittinen */ }
+
+  try {
+    if (ttsProvider === 'elevenlabs' && elevenLabsKey && elevenLabsVoiceId) {
+      await speakElevenLabs(clean);
+      addBotMessage('✅ ElevenLabs toimii!', false);
+    } else if (openaiKey) {
+      const res = await fetch('https://api.openai.com/v1/audio/speech', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'tts-1', input: clean, voice: 'nova', speed: 0.92 })
+      });
+      if (!res.ok) throw new Error(`OpenAI TTS ${res.status}`);
+      await playWithAudioContext(await res.arrayBuffer());
+      afterSpeech();
+      addBotMessage('✅ OpenAI nova toimii!', false);
+    } else {
+      speakWithBrowser(clean);
+      addBotMessage('ℹ️ Käytetään selaimen ääntä (ei API-avainta).', false);
+    }
+  } catch (err) {
+    console.warn('Testiääni epäonnistui:', err);
+    addBotMessage(`❌ Testiääni epäonnistui: ${err.message}`, false);
+    botSpeaking = false;
+    updateStopBtn();
   }
 }
 
